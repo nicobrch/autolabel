@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from db import get_db, create_tables
 from models import Video, Clip
-from utils import time_to_seconds
+from utils import time_to_seconds, extract_video_metadata
 from fastapi import File, UploadFile, HTTPException
 import os
 from pathlib import Path
@@ -59,44 +59,15 @@ async def upload_video(file: UploadFile = File(...), db: Session = Depends(get_d
         contents = await file.read()
         buffer.write(contents)
 
-    # Get video metadata using ffprobe
-    try:
-        cmd = [
-            "ffprobe",
-            "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=width,height,r_frame_rate,duration",
-            "-of", "json",
-            str(file_path)
-        ]
-
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True)
-        metadata = json.loads(result.stdout)
-
-        # Extract metadata
-        stream = metadata.get("streams", [{}])[0]
-        width = int(stream.get("width", 0))
-        height = int(stream.get("height", 0))
-
-        # Parse framerate (usually in the form "24/1")
-        fps = 0
-        if "r_frame_rate" in stream:
-            rate_parts = stream["r_frame_rate"].split("/")
-            if len(rate_parts) == 2 and int(rate_parts[1]) != 0:
-                fps = float(int(rate_parts[0]) / int(rate_parts[1]))
-
-        # Get duration
-        duration = float(stream.get("duration", 0))
-
-        # Get file size
-        file_size = os.path.getsize(file_path)
-
-    except (subprocess.SubprocessError, json.JSONDecodeError, ValueError, KeyError) as e:
-        print(f"Error extracting video metadata: {e}", file=sys.stderr)
-        width, height, fps, duration = 0, 0, 0, 0
-        file_size = os.path.getsize(
-            file_path) if os.path.exists(file_path) else 0
+    metadata = extract_video_metadata(file_path)
+    if not metadata:
+        raise HTTPException(
+            status_code=500, detail="Failed to extract video metadata")
+    width = metadata.get("width")
+    height = metadata.get("height")
+    fps = metadata.get("fps")
+    duration = metadata.get("duration")
+    file_size = metadata.get("file_size")
 
     # Create a new video entry in the database with metadata
     new_video = Video(
@@ -151,51 +122,31 @@ async def create_clip(video_id: int, start_time: str, end_time: str, db: Session
     clip_filename = f"{file_base}_{random_suffix}{file_ext}"
     clip_path = clips_dir / clip_filename
 
-    # Use ffmpeg to cut the video - use time strings directly
+    # Use ffmpeg to cut the video - use time strings directly - use frame precision
     try:
         cmd = [
             "ffmpeg",
             "-i", source_video.file_path,
             "-ss", start_time,  # Use time string format directly with ffmpeg
             "-to", end_time,    # Use time string format directly with ffmpeg
-            "-c", "copy",       # Use copy codec for fast clipping without re-encoding
+            "-c:v", "libx264",       # Use libx264 codec for video
+            "-c:a", "aac",           # Use AAC codec for audio
             str(clip_path),
             "-y"                # Overwrite output file if it exists
         ]
 
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
+        subprocess.run(cmd, capture_output=True, text=True, check=True,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # Get clip metadata
-        probe_cmd = [
-            "ffprobe",
-            "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=width,height,r_frame_rate,duration",
-            "-of", "json",
-            str(clip_path)
-        ]
-
-        result = subprocess.run(
-            probe_cmd, capture_output=True, text=True, check=True)
-        metadata = json.loads(result.stdout)
-
-        # Extract metadata
-        stream = metadata.get("streams", [{}])[0]
-        width = int(stream.get("width", 0))
-        height = int(stream.get("height", 0))
-
-        # Parse framerate
-        fps = 0
-        if "r_frame_rate" in stream:
-            rate_parts = stream["r_frame_rate"].split("/")
-            if len(rate_parts) == 2 and int(rate_parts[1]) != 0:
-                fps = float(int(rate_parts[0]) / int(rate_parts[1]))
-
-        # Get duration
-        duration = float(stream.get("duration", 0))
-
-        # Get file size
-        file_size = os.path.getsize(clip_path)
+        metadata = extract_video_metadata(clip_path)
+        if not metadata:
+            raise HTTPException(
+                status_code=500, detail="Failed to extract video metadata")
+        width = metadata.get("width")
+        height = metadata.get("height")
+        fps = metadata.get("fps")
+        duration = metadata.get("duration")
+        file_size = metadata.get("file_size")
 
     except (subprocess.SubprocessError, json.JSONDecodeError, ValueError, KeyError) as e:
         # Clean up the incomplete file if it exists
