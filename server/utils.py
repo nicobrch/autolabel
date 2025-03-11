@@ -2,6 +2,10 @@ import os
 import sys
 import json
 import subprocess
+import torch
+import numpy as np
+from pathlib import Path
+from sam2.sam2.build_sam import build_sam2_video_predictor
 
 
 def time_to_seconds(time_str: str) -> float:
@@ -81,3 +85,63 @@ def extract_video_metadata(video_path: str):
         "duration": duration,
         "file_size": file_size
     }
+
+
+def extract_frames_at_frame_step(video_path: str, frame_step: int):
+    """"
+    "Extract frames from a video at a specified frame step using ffmpeg."
+    Args:
+        video_path (str): Path to the video file.
+        frame_step (int): Step size for frame extraction. For example, if
+                          frame_step is 5, every 5th frame will be extracted.
+    """
+    # Create base frames directory if it doesn't exist
+    base_frames_dir = Path("frames")
+    base_frames_dir.mkdir(exist_ok=True)
+
+    # Create video frames directory if it doesn't exist
+    video_name = Path(video_path).stem
+    video_frames_dir = base_frames_dir / video_name
+    video_frames_dir.mkdir(exist_ok=True)
+
+    try:
+        # Prepare ffmpeg command to extract frames
+        cmd = [
+            "ffmpeg",
+            "-i", video_path,
+            "-vsync", "vfr",
+            "-vf", f"select='not(mod(n,{frame_step}))'",
+            str(video_frames_dir / "_%04d.jpg"),
+        ]
+
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
+
+        # Check if frames were extracted
+        if not any(video_frames_dir.glob("*.jpg")):
+            raise ValueError(
+                f"No frames were extracted from video '{video_path}'.")
+    except (subprocess.SubprocessError, ValueError, KeyError) as e:
+        print(f"Error extracting frames: {e}", file=sys.stderr)
+
+
+def get_frames_list(video_path: str) -> list:
+    # Check if the frames directory exists
+    base_frames_dir = Path("frames")
+    if not base_frames_dir.exists():
+        raise FileNotFoundError(
+            f"Frames directory '{base_frames_dir}' does not exist.")
+
+    # Check if frames directory exists
+    video_name = Path(video_path).stem
+    video_frames_dir = base_frames_dir / video_name
+    if not video_frames_dir.exists():
+        raise FileNotFoundError(
+            f"Frames directory '{video_frames_dir}' does not exist.")
+
+    # Get the list of frames
+    frames = sorted(video_frames_dir.glob("*.jpg"))
+    if not frames:
+        raise FileNotFoundError(
+            f"No frames found in directory '{video_frames_dir}'.")
+    return frames
