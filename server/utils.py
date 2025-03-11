@@ -228,6 +228,10 @@ def add_point_and_segment(x: int, y: int, positive: int, object_id: int, frames_
     if not current_object:
         raise ValueError(f"Object with ID {object_id} not found in database.")
 
+    # SAM2 state
+    inference_state = sam_predictor.init_state(frames_dir)
+    sam_predictor.reset_state(inference_state)
+
     # Append the new point to the existing points
     new_point = Point(
         object_id=object_id,
@@ -246,9 +250,8 @@ def add_point_and_segment(x: int, y: int, positive: int, object_id: int, frames_
     points = np.array([[p.x, p.y] for p in existing_points], dtype=np.float32)
     labels = np.array([p.label for p in existing_points], dtype=np.int32)
 
-    # Initialize SAM2 state
-    inference_state = sam_predictor.init_state(video_path=frames_dir)
-    sam_predictor.reset_state(inference_state)
+    print(f"Points: {points}")
+    print(f"Labels: {labels}")
 
     # Perform segmentation
     _, _, out_mask_logits = sam_predictor.add_new_points_or_box(
@@ -320,11 +323,10 @@ def draw_objects_masks(frame_path: str, object_ids: list, output_dir: str, db: S
         color_mask[mask] = color
 
         # Overlay with transparency
-        alpha = 0.5
-        cv2.addWeighted(color_mask, alpha, overlay, 1-alpha, 0, overlay)
+        cv2.addWeighted(color_mask, 0.5, overlay, 0.8, 0, overlay)
 
     frame_path_obj = Path(frame_path)
-    output_path = f"{output_dir}{frame_path_obj.stem}_masked{frame_path_obj.suffix}"
+    output_path = f"{output_dir}/{frame_path_obj.stem}_masked{frame_path_obj.suffix}"
 
     # Save the result
     cv2.imwrite(output_path, overlay)
@@ -333,11 +335,9 @@ def draw_objects_masks(frame_path: str, object_ids: list, output_dir: str, db: S
 
 
 if __name__ == "__main__":
-    frames_dir = "frames/footage_lxeqbo"
-    frames = get_frames_list(frames_dir)
-    new_object = create_object(1, "test_object")
-    add_point_and_segment(650, 600, 1, new_object.id,
-                          frames_dir, initialize_sam_predictor("tiny"))
-    for frame in frames:
-        draw_objects_masks(frame, [new_object.id],
-                           "frames/footage_lxeqbo_masked/")
+    # Create objects
+    db = next(get_db())
+    frames_dir = "frames/footage_kdxonm"
+    draw_objects_masks(
+        "frames/footage_kdxonm/0001.jpg", [1, 2], "frames/footage_kdxonm_masked")
+    # create_tables()
