@@ -135,8 +135,7 @@ async def create_clip(video_id: int, start_time: str, end_time: str, db: Session
             "-y"                # Overwrite output file if it exists
         ]
 
-        subprocess.run(cmd, capture_output=True, text=True, check=True,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
 
         metadata = extract_video_metadata(clip_path)
         if not metadata:
