@@ -301,29 +301,47 @@ def draw_objects_masks(frame_path: str, object_ids: list, output_dir: str, db: S
     for obj_id in object_ids:
         # Get object from database
         obj = db.query(Object).filter_by(id=obj_id).first()
-        if not obj or not obj.mask:
+        if not obj:
             continue
 
-        # Deserialize the mask
-        mask = deserialize_mask(obj.mask)
+        # Get all points for this object
+        points = db.query(Point).filter_by(object_id=obj_id).all()
 
-        # Parse the color from hex string (format: "#RRGGBB")
-        if obj.color and obj.color.startswith('#') and len(obj.color) == 7:
-            # Convert hex to BGR (OpenCV uses BGR format)
-            r = int(obj.color[1:3], 16)
-            g = int(obj.color[3:5], 16)
-            b = int(obj.color[5:7], 16)
-            color = (b, g, r)  # BGR format for OpenCV
-        else:
-            # Fallback to a default color if the stored color is invalid
-            color = (0, 255, 0)  # Green in BGR
+        # Draw mask if available
+        if obj.mask:
+            # Deserialize the mask
+            mask = deserialize_mask(obj.mask)
 
-        # Apply mask with color
-        color_mask = np.zeros_like(frame)
-        color_mask[mask] = color
+            # Parse the color from hex string (format: "#RRGGBB")
+            if obj.color and obj.color.startswith('#') and len(obj.color) == 7:
+                # Convert hex to BGR (OpenCV uses BGR format)
+                r = int(obj.color[1:3], 16)
+                g = int(obj.color[3:5], 16)
+                b = int(obj.color[5:7], 16)
+                color = (b, g, r)  # BGR format for OpenCV
+            else:
+                # Fallback to a default color if the stored color is invalid
+                color = (0, 255, 0)  # Green in BGR
 
-        # Overlay with transparency
-        cv2.addWeighted(color_mask, 0.5, overlay, 0.8, 0, overlay)
+            # Apply mask with color
+            color_mask = np.zeros_like(frame)
+            color_mask[mask] = color
+
+            # Overlay with transparency
+            cv2.addWeighted(color_mask, 0.25, overlay, 0.75, 0, overlay)
+
+        # Draw all points for this object
+        for point in points:
+            # Green for positive points (label=1), Red for negative points (label=0)
+            point_color = (0, 255, 0) if point.label == 1 else (
+                0, 0, 255)  # BGR format
+
+            # Draw the point as a circle
+            cv2.circle(overlay, (point.x, point.y), 5,
+                       point_color, -1)  # -1 means filled circle
+
+            # Draw a small border around the circle to improve visibility
+            cv2.circle(overlay, (point.x, point.y), 5, (255, 255, 255), 1)
 
     frame_path_obj = Path(frame_path)
     output_path = f"{output_dir}/{frame_path_obj.stem}_masked{frame_path_obj.suffix}"
