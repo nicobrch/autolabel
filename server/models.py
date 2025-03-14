@@ -19,46 +19,51 @@ class Video(Base):
     updated_at = Column(DateTime, default=datetime.now(timezone.utc),
                         onupdate=datetime.now(timezone.utc))
 
-    def __repr__(self):
-        return f"<Video(file_name='{self.file_name}', resolution='{self.width}x{self.height}', fps={self.fps})>"
 
-
-class Clip(Base):
-    __tablename__ = 'clips'
+class Frame(Base):
+    __tablename__ = 'frames'
 
     id = Column(Integer, primary_key=True)
-    video_id = Column(Integer, ForeignKey('videos.id'), nullable=False)
+    video_id = Column(Integer, ForeignKey(
+        'videos.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
+    frame_number = Column(Integer, nullable=False)
     file_path = Column(String, nullable=False, unique=True)
-    file_name = Column(String, nullable=False)
-    file_size = Column(Integer)  # size in bytes
-    width = Column(Integer)
-    height = Column(Integer)
-    fps = Column(Float)
-    duration = Column(Float)  # duration in seconds
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=datetime.now(timezone.utc),
                         onupdate=datetime.now(timezone.utc))
-
-    def __repr__(self):
-        return f"<Clip(file_name='{self.file_name}', resolution='{self.width}x{self.height}', fps={self.fps})>"
 
 
 class Object(Base):
     __tablename__ = 'objects'
 
     id = Column(Integer, primary_key=True)
-    clip_id = Column(Integer, ForeignKey('clips.id'), nullable=False)
+    video_id = Column(Integer, ForeignKey(
+        'videos.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     color = Column(String, nullable=False)
-    mask = Column(LargeBinary, nullable=True)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
+
+
+class Mask(Base):
+    __tablename__ = 'masks'
+
+    id = Column(Integer, primary_key=True)
+    object_id = Column(Integer, ForeignKey(
+        'objects.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
+    frame_id = Column(Integer, ForeignKey(
+        'frames.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
+    mask = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc),
+                        onupdate=datetime.now(timezone.utc))
 
 
 class Point(Base):
     __tablename__ = 'points'
 
     id = Column(Integer, primary_key=True)
-    object_id = Column(Integer, ForeignKey('objects.id'), nullable=False)
+    object_id = Column(Integer, ForeignKey(
+        'objects.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
     x = Column(Integer, nullable=False)
     y = Column(Integer, nullable=False)
     label = Column(Integer, nullable=False)  # 1 for positive, 0 for negative
