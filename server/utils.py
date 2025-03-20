@@ -658,3 +658,31 @@ def draw_objects_masks_on_frame(
     logger.info(f"Saved masked frame to {output_path}")
 
     return output_path
+
+
+def create_bounding_box_on_mask(mask):
+    """"
+    Create a bounding box around the non-zero regions of the mask.
+
+    Args:
+        mask: Binary mask (numpy array)
+    Returns:
+        Tuple of (x_min, y_min, x_max, y_max) coordinates
+    """
+    # Deserialize the mask if it's in bytes
+    if isinstance(mask, bytes):
+        mask = deserialize_mask(mask)
+
+    # Ensure mask is binary
+    mask = (mask > 0).astype(np.uint8)
+
+    # Find the bounding box coordinates
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+
+    # Get the first and last indices of the rows and columns that contain non-zero values
+    y_min, y_max = np.where(rows)[0][[0, -1]]
+    x_min, x_max = np.where(cols)[0][[0, -1]]
+
+    # Ensure bounding box is tight
+    return x_min, y_min, x_max + 1, y_max + 1
