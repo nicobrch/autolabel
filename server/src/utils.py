@@ -1,7 +1,6 @@
 import os
 import json
 import subprocess
-import torch
 import numpy as np
 import pickle
 import cv2
@@ -11,7 +10,6 @@ from typing import List, Dict, Optional, Union
 from sqlalchemy.orm import Session
 from db import get_db
 from models import Object, Point, Frame, Mask
-from sam2.build_sam import build_sam2_video_predictor
 
 # Configure logging
 logging.basicConfig(

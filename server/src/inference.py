@@ -1,24 +1,12 @@
 import torch
 import numpy as np
-import logging
 from pathlib import Path
 from typing import Union
 from sqlalchemy.orm import Session
 from db import get_db
 from models import Object, Point, Frame, Mask
-from utils import serialize_mask
+from utils import serialize_mask, logger
 from sam2.build_sam import build_sam2_video_predictor
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('server.log')
-    ]
-)
-logger = logging.getLogger(__name__)
 
 
 class InferenceAPI:
