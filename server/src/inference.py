@@ -76,6 +76,17 @@ class InferenceAPI:
             video_path=str(frames_dir))
         self.predictor.reset_state(self.inference_state)
 
+    def reset_state(self) -> None:
+        """
+        Reset the SAM2 predictor state.
+        """
+        if self.inference_state is not None:
+            logger.info("Resetting SAM2 state")
+            self.predictor.reset_state(self.inference_state)
+            self.inference_state = None
+        else:
+            logger.warning("No inference state to reset.")
+
     def segment_object(self, object_id: int, start_frame_idx: int, db: Session = next(get_db())) -> np.ndarray:
         """
         Segment an object using SAM2 and save the mask to the database.

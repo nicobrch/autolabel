@@ -4,10 +4,23 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Lar
 from db import Base
 
 
+class Project(Base):
+    __tablename__ = 'projects'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+    description = Column(String)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc),
+                        onupdate=datetime.now(timezone.utc))
+
+
 class Video(Base):
     __tablename__ = 'videos'
 
     id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(
+        'projects.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
     file_path = Column(String, nullable=False, unique=True)
     file_name = Column(String, nullable=False)
     file_size = Column(Integer)  # size in bytes
