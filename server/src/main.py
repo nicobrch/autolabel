@@ -3,7 +3,7 @@ import uvicorn
 from sqlalchemy.orm import Session
 
 from db import get_db, create_tables
-from models import Video, Clip
+from models import Video
 from utils import time_to_seconds, extract_video_metadata
 from fastapi import File, UploadFile, HTTPException
 import os
@@ -155,32 +155,8 @@ async def create_clip(video_id: int, start_time: str, end_time: str, db: Session
         raise HTTPException(
             status_code=500, detail=f"Failed to create clip: {str(e)}")
 
-    # Create a new clip entry in the database
-    new_clip = Clip(
-        video_id=video_id,
-        file_path=str(clip_path),
-        file_name=clip_filename,
-        file_size=file_size,
-        width=width,
-        height=height,
-        fps=fps,
-        duration=duration
-    )
-
-    db.add(new_clip)
-    db.commit()
-    db.refresh(new_clip)
-
     return {
-        "message": "Clip created successfully",
-        "clip_id": new_clip.id,
-        "clip_details": {
-            "file_name": new_clip.file_name,
-            "duration": new_clip.duration,
-            "path": new_clip.file_path,
-            "start_time": start_time,
-            "end_time": end_time
-        }
+        "message": "Clip created successfully"
     }
 
 
