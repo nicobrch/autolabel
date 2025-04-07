@@ -3,9 +3,12 @@ __pycache__
 *.pyo
 *.pyd
 
+.venv
 .env
 .env.local
 
 *.mp4
 *.db
 *.jpg
+
+*.log
