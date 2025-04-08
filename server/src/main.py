@@ -1,18 +1,11 @@
 from fastapi import FastAPI, Depends
-import uvicorn
 from sqlalchemy.orm import Session
-
 from db import get_db, create_tables
 from models import Video
-from utils import time_to_seconds, extract_video_metadata
+from utils import extract_video_metadata
 from fastapi import File, UploadFile, HTTPException
-import os
 from pathlib import Path
-import subprocess
-import json
-import sys
-import random
-import string
+import uvicorn
 
 app = FastAPI(title="Simple FastAPI App")
 

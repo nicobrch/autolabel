@@ -1,8 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { FileCard } from "../files/FileCard";
+import { useQuery } from "@tanstack/react-query";
+import { fetchFiles } from "@/services/api";
+import { Card } from "@/components/ui/card";
 
 export function ContentArea() {
+  const {
+    isPending,
+    error,
+    data: files,
+  } = useQuery({
+    queryKey: ["files"],
+    queryFn: fetchFiles,
+  });
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center gap-4">
@@ -61,21 +73,36 @@ export function ContentArea() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <FileCard
-          title="Q4 Sales Deck"
-          metadata="Shared folder • 8 presentations"
-          thumbnail="/placeholder.svg"
-        />
-        <FileCard
-          title="Product Videos"
-          metadata="Shared folder • 5 videos"
-          thumbnail="/placeholder.svg"
-        />
-        <FileCard
-          title="ROI Calculator"
-          metadata="Shared file • 1 Excel"
-          thumbnail="/placeholder.svg"
-        />
+        {isPending ? (
+          // Loading state
+          Array.from({ length: 3 }).map((_, index) => (
+            <Card key={index} className="h-[240px] animate-pulse" />
+          ))
+        ) : error ? (
+          // Error state
+          <div className="col-span-full text-center">
+            <p className="text-destructive">
+              Error loading files: {error.message}
+            </p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </div>
+        ) : (
+          // Success state - render files
+          files?.map((file, index) => (
+            <FileCard
+              key={index}
+              title={file.title}
+              metadata={file.metadata}
+              thumbnail={file.thumbnail}
+            />
+          ))
+        )}
       </div>
     </div>
   );
