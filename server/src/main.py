@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from db import get_db, create_tables
 from models import Project, Video, Frame, Object, Mask, Point
-from utils import extract_video_metadata, extract_frames_at_frame_step
+from utils import extract_video_metadata, extract_frames_at_frame_step, sqlalchemy_to_dict
 from fastapi import File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uvicorn
 
@@ -12,6 +13,20 @@ app = FastAPI(
     title="AutoLabel API",
     description="API for video labeling with SAM2",
     version="1.0.0"
+)
+
+# CORS support for React
+
+origins = [
+    "http://localhost:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -31,7 +46,7 @@ async def root():
 @app.get("/api/v1/projects", response_model=List[dict])
 async def list_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     projects = db.query(Project).offset(skip).limit(limit).all()
-    return projects
+    return [sqlalchemy_to_dict(project) for project in projects]
 
 
 @app.get("/api/v1/projects/{project_id}", response_model=dict)
@@ -39,7 +54,7 @@ async def get_project(project_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    return project
+    return sqlalchemy_to_dict(project)
 
 
 @app.post("/api/v1/projects", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -54,7 +69,7 @@ async def create_project(name: str = Body(...), description: str = Body(None), d
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
-    return new_project
+    return sqlalchemy_to_dict(new_project)
 
 
 @app.put("/api/v1/projects/{project_id}", response_model=dict)
@@ -82,7 +97,7 @@ async def update_project(
 
     db.commit()
     db.refresh(project)
-    return project
+    return sqlalchemy_to_dict(project)
 
 
 @app.delete("/api/v1/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -110,7 +125,7 @@ async def list_videos(
         query = query.filter(Video.project_id == project_id)
 
     videos = query.offset(skip).limit(limit).all()
-    return videos
+    return [sqlalchemy_to_dict(video) for video in videos]
 
 
 @app.get("/api/v1/videos/{video_id}", response_model=dict)
@@ -118,7 +133,7 @@ async def get_video(video_id: int, db: Session = Depends(get_db)):
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
-    return video
+    return sqlalchemy_to_dict(video)
 
 
 @app.post("/api/v1/videos/upload", response_model=dict)
@@ -171,7 +186,7 @@ async def upload_video(
     db.commit()
     db.refresh(new_video)
 
-    return new_video
+    return sqlalchemy_to_dict(new_video)
 
 
 @app.delete("/api/v1/videos/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -207,7 +222,7 @@ async def list_frames(
         query = query.filter(Frame.video_id == video_id)
 
     frames = query.offset(skip).limit(limit).all()
-    return frames
+    return [sqlalchemy_to_dict(frame) for frame in frames]
 
 
 @app.get("/api/v1/frames/{frame_id}", response_model=dict)
@@ -215,7 +230,7 @@ async def get_frame(frame_id: int, db: Session = Depends(get_db)):
     frame = db.query(Frame).filter(Frame.id == frame_id).first()
     if not frame:
         raise HTTPException(status_code=404, detail="Frame not found")
-    return frame
+    return sqlalchemy_to_dict(frame)
 
 
 @app.post("/api/v1/videos/{video_id}/extract_frames", response_model=dict)
@@ -276,7 +291,7 @@ async def list_objects(
         query = query.filter(Object.video_id == video_id)
 
     objects = query.offset(skip).limit(limit).all()
-    return objects
+    return [sqlalchemy_to_dict(obj) for obj in objects]
 
 
 @app.get("/api/v1/objects/{object_id}", response_model=dict)
@@ -284,7 +299,7 @@ async def get_object(object_id: int, db: Session = Depends(get_db)):
     obj = db.query(Object).filter(Object.id == object_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="Object not found")
-    return obj
+    return sqlalchemy_to_dict(obj)
 
 
 @app.post("/api/v1/videos/{video_id}/objects", response_model=dict)
@@ -314,7 +329,7 @@ async def create_object(
     db.add(new_object)
     db.commit()
     db.refresh(new_object)
-    return new_object
+    return sqlalchemy_to_dict(new_object)
 
 
 @app.put("/api/v1/objects/{object_id}", response_model=dict)
@@ -336,7 +351,7 @@ async def update_object(
 
     db.commit()
     db.refresh(obj)
-    return obj
+    return sqlalchemy_to_dict(obj)
 
 
 @app.delete("/api/v1/objects/{object_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -364,7 +379,7 @@ async def list_points(
         query = query.filter(Point.object_id == object_id)
 
     points = query.offset(skip).limit(limit).all()
-    return points
+    return [sqlalchemy_to_dict(point) for point in points]
 
 
 @app.get("/api/v1/points/{point_id}", response_model=dict)
@@ -372,7 +387,7 @@ async def get_point(point_id: int, db: Session = Depends(get_db)):
     point = db.query(Point).filter(Point.id == point_id).first()
     if not point:
         raise HTTPException(status_code=404, detail="Point not found")
-    return point
+    return sqlalchemy_to_dict(point)
 
 
 @app.post("/api/v1/objects/{object_id}/points", response_model=dict)
@@ -399,7 +414,7 @@ async def create_point(
     db.add(new_point)
     db.commit()
     db.refresh(new_point)
-    return new_point
+    return sqlalchemy_to_dict(new_point)
 
 
 @app.put("/api/v1/points/{point_id}", response_model=dict)
@@ -427,7 +442,7 @@ async def update_point(
 
     db.commit()
     db.refresh(point)
-    return point
+    return sqlalchemy_to_dict(point)
 
 
 @app.delete("/api/v1/points/{point_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -458,10 +473,7 @@ async def list_masks(
         query = query.filter(Mask.frame_id == frame_id)
 
     masks = query.offset(skip).limit(limit).all()
-    # Don't return the actual mask data in the list to avoid large responses
-    for mask in masks:
-        mask.mask = None
-    return masks
+    return [sqlalchemy_to_dict(mask) for mask in masks]
 
 
 @app.get("/api/v1/masks/{mask_id}")
@@ -469,16 +481,7 @@ async def get_mask(mask_id: int, db: Session = Depends(get_db)):
     mask = db.query(Mask).filter(Mask.id == mask_id).first()
     if not mask:
         raise HTTPException(status_code=404, detail="Mask not found")
-
-    # For API responses, don't return the actual binary mask data
-    result = {
-        "id": mask.id,
-        "object_id": mask.object_id,
-        "frame_id": mask.frame_id,
-        "created_at": mask.created_at,
-        "updated_at": mask.updated_at
-    }
-    return result
+    return sqlalchemy_to_dict(mask)
 
 
 @app.delete("/api/v1/masks/{mask_id}", status_code=status.HTTP_204_NO_CONTENT)

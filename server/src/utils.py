@@ -6,7 +6,7 @@ import pickle
 import cv2
 import logging
 from pathlib import Path
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Any
 from sqlalchemy.orm import Session
 from db import get_db
 from models import Object, Point, Frame, Mask
@@ -464,3 +464,30 @@ def create_bounding_box_on_mask(mask):
 
     # Ensure bounding box is tight
     return x_min, y_min, x_max + 1, y_max + 1
+
+
+def sqlalchemy_to_dict(obj: Any) -> dict:
+    """
+    Convert SQLAlchemy model instance to a dictionary.
+
+    Args:
+        obj: SQLAlchemy model instance
+
+    Returns:
+        Dictionary representation of the model
+    """
+    if obj is None:
+        return None
+
+    result = {}
+    for column in obj.__table__.columns:
+        value = getattr(obj, column.name)
+
+        # Handle special cases like binary data that shouldn't be returned directly
+        if column.name == 'mask' and isinstance(value, bytes):
+            # Don't include binary mask data in API responses
+            result[column.name] = None
+        else:
+            result[column.name] = value
+
+    return result
