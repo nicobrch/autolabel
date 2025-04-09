@@ -1,18 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { FileCard } from "../files/FileCard";
 import { useQuery } from "@tanstack/react-query";
-import { fetchFiles } from "@/services/api";
-import { Card } from "@/components/ui/card";
+import { fetchProjects } from "@/services/api";
+import { ProjectCard } from "@/components/projects/ProjectCard";
 
 export function ContentArea() {
   const {
     isPending,
     error,
-    data: files,
+    data: projects,
   } = useQuery({
-    queryKey: ["files"],
-    queryFn: fetchFiles,
+    queryKey: ["projects"],
+    queryFn: fetchProjects,
   });
 
   return (
@@ -20,7 +19,7 @@ export function ContentArea() {
       <div className="mb-6 flex items-center gap-4">
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Create
+          Create Project
         </Button>
         <Button variant="outline" className="gap-2">
           <svg
@@ -36,53 +35,19 @@ export function ContentArea() {
               strokeLinejoin="round"
             />
           </svg>
-          Upload
-        </Button>
-        <Button variant="outline" className="gap-2">
-          <svg
-            className="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Create folder
-        </Button>
-        <Button variant="outline" className="gap-2">
-          <svg
-            className="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              d="M12 18.5a6.5 6.5 0 100-13 6.5 6.5 0 000 13zM12 14a2 2 0 100-4 2 2 0 000 4z"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Record
+          Import Project
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {isPending ? (
-          // Loading state
-          Array.from({ length: 3 }).map((_, index) => (
-            <Card key={index} className="h-[240px] animate-pulse" />
-          ))
+          <div className="col-span-full flex justify-center">
+            <p className="text-gray-500">Loading projects...</p>
+          </div>
         ) : error ? (
-          // Error state
-          <div className="col-span-full text-center">
-            <p className="text-destructive">
-              Error loading files: {error.message}
+          <div className="col-span-full flex flex-col items-center">
+            <p className="text-red-500">
+              Error loading projects: {error.message}
             </p>
             <Button
               variant="outline"
@@ -93,13 +58,12 @@ export function ContentArea() {
             </Button>
           </div>
         ) : (
-          // Success state - render files
-          files?.map((file, index) => (
-            <FileCard
+          // Success state - render projects
+          projects?.map((project, index) => (
+            <ProjectCard
               key={index}
-              title={file.title}
-              metadata={file.metadata}
-              thumbnail={file.thumbnail}
+              name={project.name}
+              description={project.description}
             />
           ))
         )}

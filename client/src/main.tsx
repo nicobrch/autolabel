@@ -5,13 +5,13 @@ import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const queryClient = new QueryClient();
 
-import FileManager from "./pages/FileManager";
+import ProjectManager from "./pages/ProjectManager";
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<FileManager />} />
+        <Route path="/" element={<ProjectManager />} />
       </Routes>
     </BrowserRouter>
   </QueryClientProvider>

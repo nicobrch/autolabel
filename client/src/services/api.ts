@@ -1,14 +1,14 @@
-interface FileData {
-  title: string;
-  metadata: string;
-  thumbnail: string;
+interface ProjectData {
+  id: number;
+  name: string;
+  description: string;
 }
 
-export async function fetchFiles(): Promise<FileData[]> {
-  const response = await fetch("http://localhost:8000/files");
+export async function fetchProjects(): Promise<ProjectData[]> {
+  const response = await fetch("http://localhost:8000/api/v1/projects");
 
   if (!response.ok) {
-    throw new Error("Failed to fetch files");
+    throw new Error("Failed to fetch projects");
   }
 
   return response.json();
