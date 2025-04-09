@@ -4,7 +4,7 @@ import { ContentArea } from "@/components/layout/ContentArea";
 
 export default function ProjectManager() {
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-white font-display">
       <Sidebar />
       <div className="flex-1">
         <Header />
