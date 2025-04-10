@@ -22,7 +22,7 @@ interface CreateProjectData {
 export async function createProject(
   data: CreateProjectData
 ): Promise<ProjectData> {
-  const response = await fetch("http://localhost:8000/api/v1/project", {
+  const response = await fetch("http://localhost:8000/api/v1/projects", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
