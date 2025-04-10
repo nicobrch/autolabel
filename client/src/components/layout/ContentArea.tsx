@@ -3,6 +3,8 @@ import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchProjects } from "@/services/api";
 import { ProjectCard } from "@/components/projects/ProjectCard";
+import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 
 export function ContentArea() {
   const {
@@ -17,10 +19,15 @@ export function ContentArea() {
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center gap-4">
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Project
-        </Button>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Project
+            </Button>
+          </DialogTrigger>
+          <CreateProjectForm />
+        </Dialog>
         <Button variant="outline" className="gap-2">
           <svg
             className="h-4 w-4"
