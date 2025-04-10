@@ -3,6 +3,7 @@ import { NavItem } from "../navigation/NavItem";
 import { FolderItem } from "../navigation/FolderItem";
 import { useQuery } from "@tanstack/react-query";
 import { fetchProjects } from "@/services/api";
+import { ErrorMessage } from "../ui/errormsg";
 
 export function Sidebar() {
   const {
@@ -33,9 +34,7 @@ export function Sidebar() {
                 Loading projects...
               </div>
             ) : error ? (
-              <div className="px-3 py-2 text-sm text-red-500">
-                Error: {error.message}
-              </div>
+              <ErrorMessage error={error.message} />
             ) : projects && projects.length > 0 ? (
               projects.map((project, index) => (
                 <FolderItem key={index} to={`/projects/${project.id}`}>

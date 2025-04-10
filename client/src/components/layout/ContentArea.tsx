@@ -5,6 +5,7 @@ import { fetchProjects } from "@/services/api";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { ErrorMessage } from "../ui/errormsg";
 
 export function ContentArea() {
   const {
@@ -53,14 +54,8 @@ export function ContentArea() {
           </div>
         ) : error ? (
           <div className="col-span-full flex flex-col items-center">
-            <p className="text-red-500">
-              Error loading projects: {error.message}
-            </p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => window.location.reload()}
-            >
+            <ErrorMessage error={error.message} />
+            <Button variant="outline" onClick={() => window.location.reload()}>
               Retry
             </Button>
           </div>
