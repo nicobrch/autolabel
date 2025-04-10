@@ -16,23 +16,19 @@ export function Sidebar() {
   });
 
   return (
-    <div className="w-64 border-r bg-white">
+    <div className="w-64 border-r">
       <div className="p-4">
         <h1 className="text-xl font-bold">AutoLabel</h1>
       </div>
       <nav className="space-y-1 px-2">
-        <NavItem to="#" icon={<LayoutGrid className="h-4 w-4" />} active>
+        <NavItem to="#" icon={<LayoutGrid className="h-4 w-4" />}>
           All content
         </NavItem>
         <div className="py-3">
-          <div className="px-3 text-xs font-medium uppercase text-gray-500">
-            Projects
-          </div>
+          <div className="px-3 text-xs font-medium uppercase">Projects</div>
           <div className="mt-2">
             {isPending ? (
-              <div className="px-3 py-2 text-sm text-gray-500">
-                Loading projects...
-              </div>
+              <div className="px-3 py-2 text-sm">Loading projects...</div>
             ) : error ? (
               <ErrorMessage error={error.message} />
             ) : projects && projects.length > 0 ? (
@@ -42,9 +38,7 @@ export function Sidebar() {
                 </FolderItem>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-gray-500">
-                No projects found
-              </div>
+              <div className="px-3 py-2 text-sm">No projects found</div>
             )}
           </div>
         </div>

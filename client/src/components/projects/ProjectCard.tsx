@@ -1,3 +1,5 @@
+import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
+
 interface ProjectCardProps {
   name: string;
   description: string;
@@ -5,11 +7,11 @@ interface ProjectCardProps {
 
 export function ProjectCard({ name, description }: ProjectCardProps) {
   return (
-    <div className="group relative overflow-hidden rounded-lg border bg-white">
-      <div className="p-4">
-        <h3 className="font-medium text-gray-900">{name}</h3>
-        <p className="text-sm text-gray-500">{description}</p>
-      </div>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{name}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }

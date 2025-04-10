@@ -37,7 +37,7 @@ export function CreateProjectForm() {
   };
 
   return (
-    <DialogContent className="bg-white rounded-lg p-6 shadow-lg max-w-md w-full">
+    <DialogContent className="max-w-md w-full">
       <DialogHeader>
         <DialogTitle>Create Project</DialogTitle>
         <DialogDescription>

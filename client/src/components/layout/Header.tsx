@@ -7,7 +7,7 @@ export function Header() {
     <header className="flex items-center justify-between border-b px-6 py-4">
       <div className="w-96">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4" />
           <Input type="search" placeholder="Search files..." className="pl-9" />
         </div>
       </div>

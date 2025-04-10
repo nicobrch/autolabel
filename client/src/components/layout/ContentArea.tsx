@@ -50,7 +50,7 @@ export function ContentArea() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {isPending ? (
           <div className="col-span-full flex justify-center">
-            <p className="text-gray-500">Loading projects...</p>
+            <p>Loading projects...</p>
           </div>
         ) : error ? (
           <div className="col-span-full flex flex-col items-center">
