@@ -10,11 +10,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogDescription,
-} from "../ui/dialog";
+} from "@/components/ui/dialog";
 import { DialogTitle } from "@radix-ui/react-dialog";
-import { ErrorMessage } from "../ui/errormsg";
+import { ErrorMessage } from "@/components/ui/errormsg";
 
-export function CreateProjectForm() {
+export function CreateProjectForm({
+  setIsOpen,
+}: {
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,6 +33,7 @@ export function CreateProjectForm() {
     try {
       await createProject({ name, description });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setIsOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {

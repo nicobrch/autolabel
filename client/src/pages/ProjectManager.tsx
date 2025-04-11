@@ -7,6 +7,7 @@ import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useState } from "react";
 
 export default function ProjectManager() {
   const {
@@ -18,18 +19,20 @@ export default function ProjectManager() {
     queryFn: fetchProjects,
   });
 
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center gap-4">
         <SidebarTrigger />
-        <Dialog>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
               Create Project
             </Button>
           </DialogTrigger>
-          <CreateProjectForm />
+          <CreateProjectForm setIsOpen={setIsOpen} />
         </Dialog>
         <Button variant="outline" className="gap-2">
           <svg
@@ -49,7 +52,7 @@ export default function ProjectManager() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {isPending ? (
           <div className="col-span-full flex justify-center">
             <p>Loading projects...</p>
