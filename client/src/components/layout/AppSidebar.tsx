@@ -34,8 +34,8 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar className="font-display">
-      <SidebarHeader className="p-4">
+    <Sidebar>
+      <SidebarHeader className="p-4 h-16 border-b flex">
         <TypographyH3>AutoLabel</TypographyH3>
       </SidebarHeader>
       <SidebarContent>
