@@ -6,7 +6,6 @@ import { ProjectCard } from "@/components/projects/ProjectCard";
 import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useState } from "react";
 
 export default function ProjectManager() {
@@ -24,7 +23,6 @@ export default function ProjectManager() {
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center gap-4">
-        <SidebarTrigger />
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
