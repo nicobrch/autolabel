@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
 } from "../ui/sidebar";
 import { TypographyH3 } from "../typography/typography";
+import { NavLink } from "react-router";
 
 export function AppSidebar() {
   const {
@@ -28,7 +29,7 @@ export function AppSidebar() {
   const appItems = [
     {
       title: "All content",
-      url: "#",
+      url: "/",
       icon: LayoutGrid,
     },
   ];
@@ -46,10 +47,10 @@ export function AppSidebar() {
               {appItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <NavLink to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
