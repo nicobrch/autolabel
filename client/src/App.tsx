@@ -5,7 +5,7 @@ const queryClient = new QueryClient();
 
 import AppLayout from "./components/layout/AppLayout";
 import ProjectManager from "./pages/ProjectManager";
-import FrameLabeling from "./pages/FrameLabeling";
+import VideoLabeling from "./pages/VideoLabeling";
 
 export default function App() {
   return (
@@ -15,7 +15,7 @@ export default function App() {
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<ProjectManager />} />
-              <Route path="/label/" element={<FrameLabeling />} />
+              <Route path="/label/" element={<VideoLabeling />} />
             </Route>
           </Routes>
         </BrowserRouter>

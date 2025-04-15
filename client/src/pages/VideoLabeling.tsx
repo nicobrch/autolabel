@@ -1,0 +1,118 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { TypographyH4 } from "@/components/typography/typography";
+
+export default function VideoLabeling() {
+  const [modelCheckpoint, setModelCheckpoint] = useState("SAM2-T");
+  const [selectedObject, setSelectedObject] = useState("Person");
+
+  return (
+    <div className="flex flex-col w-full p-6">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex-1">
+          <Card className="relative aspect-video w-full overflow-hidden">
+            <img
+              src="/placeholder.svg?height=720&width=1280"
+              alt="Video first frame"
+              width={1280}
+              height={720}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute bottom-4 left-4 bg-accent px-3 py-1 rounded-md text-sm">
+              Frame: 1/240
+            </div>
+          </Card>
+        </div>
+
+        <div className="w-full lg:w-80 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <TypographyH4>Inference Settings</TypographyH4>
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="model-checkpoint">Model Checkpoint</Label>
+                <Select
+                  value={modelCheckpoint}
+                  onValueChange={setModelCheckpoint}
+                >
+                  <SelectTrigger id="model-checkpoint" className="w-full">
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SAM2-T">SAM2-Tiny</SelectItem>
+                    <SelectItem value="SAM2-S">SAM2-Small</SelectItem>
+                    <SelectItem value="SAM2-BP">SAM2-BasePlus</SelectItem>
+                    <SelectItem value="SAM2-L">SAM2-Large</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <TypographyH4>Labeling Options</TypographyH4>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="object-type">Create Object</Label>
+                <Button className="w-full">Create New Object</Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="object-type">Current Selected Object</Label>
+                <Select
+                  value={selectedObject}
+                  onValueChange={setSelectedObject}
+                >
+                  <SelectTrigger id="object-type" className="w-full">
+                    <SelectValue placeholder="Select object" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Person">Person</SelectItem>
+                    <SelectItem value="Vehicle">Vehicle</SelectItem>
+                    <SelectItem value="Animal">Animal</SelectItem>
+                    <SelectItem value="Building">Building</SelectItem>
+                    <SelectItem value="Custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-4">
+                <Label>Point Type</Label>
+                <div className="space-y-2">
+                  <RadioGroup defaultValue="positive">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="positive" id="positive" />
+                      <Label htmlFor="positive">Positive</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="negative" id="negative" />
+                      <Label htmlFor="negative">Negative</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
