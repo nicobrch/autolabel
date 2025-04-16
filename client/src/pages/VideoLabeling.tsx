@@ -11,27 +11,30 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TypographyH4 } from "@/components/typography/typography";
+import { Plus, Brain, Download } from "lucide-react";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 export default function VideoLabeling() {
   const [modelCheckpoint, setModelCheckpoint] = useState("SAM2-T");
   const [selectedObject, setSelectedObject] = useState("Person");
+  const [pointType, setPointType] = useState("positive");
 
   return (
     <div className="flex flex-col w-full p-6">
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
-          <Card className="relative aspect-video w-full overflow-hidden">
+          <AspectRatio ratio={16 / 9}>
             <img
               src="/placeholder.svg?height=720&width=1280"
               alt="Video first frame"
               width={1280}
               height={720}
-              className="w-full h-full object-cover"
+              className="w-full h-full rounded-md object-cover shadow-sm border-1"
             />
             <div className="absolute bottom-4 left-4 bg-accent px-3 py-1 rounded-md text-sm">
               Frame: 1/240
             </div>
-          </Card>
+          </AspectRatio>
         </div>
 
         <div className="w-full lg:w-80 space-y-6">
@@ -72,7 +75,10 @@ export default function VideoLabeling() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="object-type">Create Object</Label>
-                <Button className="w-full">Create New Object</Button>
+                <Button className="w-full">
+                  <Plus className="h-4 w-4" />
+                  Create New Object
+                </Button>
               </div>
 
               <div className="space-y-2">
@@ -97,17 +103,41 @@ export default function VideoLabeling() {
               <div className="space-y-4">
                 <Label>Point Type</Label>
                 <div className="space-y-2">
-                  <RadioGroup defaultValue="positive">
+                  <RadioGroup value={pointType} onValueChange={setPointType}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="positive" id="positive" />
                       <Label htmlFor="positive">Positive</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
                       <RadioGroupItem value="negative" id="negative" />
                       <Label htmlFor="negative">Negative</Label>
                     </div>
                   </RadioGroup>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <TypographyH4>Actions</TypographyH4>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="label-video">Propagate Segmentation</Label>
+                <Button className="w-full">
+                  <Brain className="h-4 w-4" />
+                  Label Video
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="download-labels">
+                  Download Inference Results
+                </Label>
+                <Button variant="secondary" className="w-full" disabled>
+                  <Download className="h-4 w-4" />
+                  Download Labels
+                </Button>
               </div>
             </CardContent>
           </Card>
