@@ -19,16 +19,51 @@ export default function VideoLabeling() {
   const [selectedObject, setSelectedObject] = useState("Person");
   const [pointType, setPointType] = useState("positive");
 
-  const handleImageClick = (event: MouseEvent<HTMLImageElement>) => {
+  const handleImageClick = async (event: MouseEvent<HTMLImageElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     // Calculate click coordinates relative to the image element
-    // NOTE: If the image is scaled/resized within the element,
-    // further calculations might be needed based on naturalWidth/Height vs clientWidth/Height.
-    // For now, offsetX/Y provides coordinates relative to the element's padding box.
     const x = event.nativeEvent.offsetX;
     const y = event.nativeEvent.offsetY;
     console.log(`Clicked at (relative): x=${x}, y=${y}`);
-    // TODO: Store or send these coordinates as needed
+
+    // Determine label based on pointType state
+    const label = pointType === "positive" ? 1 : 0;
+    const object_id = 0; // Using object_id = 0 for now
+
+    try {
+      const response = await fetch(`/api/v1/objects/${object_id}/points`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ x, y, label }),
+      });
+
+      if (!response.ok) {
+        // Handle non-successful responses (e.g., 4xx, 5xx)
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          const errorData = await response.json();
+          console.error("Error sending point:", response.status, errorData);
+        } else {
+          console.error(
+            "Error sending point: Received non-JSON response",
+            response.status,
+            response.statusText
+          );
+        }
+        // Optionally, show an error message to the user
+      } else {
+        // Handle successful response (e.g., 2xx)
+        const result = await response.json();
+        console.log("Point added successfully:", result);
+        // Optionally, update UI or state based on success
+      }
+    } catch (error) {
+      // Handle network errors or issues with the fetch call itself
+      console.error("Failed to send point:", error);
+      // Optionally, show an error message to the user
+    }
   };
 
   return (
