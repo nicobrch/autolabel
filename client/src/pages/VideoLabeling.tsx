@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,18 @@ export default function VideoLabeling() {
   const [selectedObject, setSelectedObject] = useState("Person");
   const [pointType, setPointType] = useState("positive");
 
+  const handleImageClick = (event: MouseEvent<HTMLImageElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    // Calculate click coordinates relative to the image element
+    // NOTE: If the image is scaled/resized within the element,
+    // further calculations might be needed based on naturalWidth/Height vs clientWidth/Height.
+    // For now, offsetX/Y provides coordinates relative to the element's padding box.
+    const x = event.nativeEvent.offsetX;
+    const y = event.nativeEvent.offsetY;
+    console.log(`Clicked at (relative): x=${x}, y=${y}`);
+    // TODO: Store or send these coordinates as needed
+  };
+
   return (
     <div className="flex flex-col w-full p-6">
       <div className="flex flex-col lg:flex-row gap-6">
@@ -29,7 +41,8 @@ export default function VideoLabeling() {
               alt="Video first frame"
               width={1280}
               height={720}
-              className="w-full h-full rounded-md object-cover shadow-sm border-1"
+              className="w-full h-full rounded-md object-cover shadow-sm border-1 cursor-crosshair"
+              onClick={handleImageClick}
             />
             <div className="absolute bottom-4 left-4 bg-accent px-3 py-1 rounded-md text-sm">
               Frame: 1/240
