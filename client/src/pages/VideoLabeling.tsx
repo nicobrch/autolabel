@@ -4,6 +4,8 @@ import { InferenceSettings } from "@/components/video-labeling/InferenceSettings
 import { LabelingOptions } from "@/components/video-labeling/LabelingOptions";
 import { ActionButtons } from "@/components/video-labeling/ActionButtons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Activity, Brain, Download } from "lucide-react";
 
 export default function VideoLabeling() {
   const [modelCheckpoint, setModelCheckpoint] = useState("SAM2-T");
@@ -100,24 +102,30 @@ export default function VideoLabeling() {
     <div className="flex flex-col w-full p-6">
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
-          <Tabs defaultValue="account" className="w-[400px]">
-            <TabsList>
-              <TabsTrigger value="account">Account</TabsTrigger>
-              <TabsTrigger value="password">Password</TabsTrigger>
-            </TabsList>
-            <TabsContent value="account">
-              Make changes to your account here.
+          <Tabs defaultValue="labelframe">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex-1">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="labelframe">Label Frame</TabsTrigger>
+                  <TabsTrigger value="preview">Preview Output</TabsTrigger>
+                </TabsList>
+              </div>
+              <ActionButtons
+                onLabelVideo={handleLabelVideo}
+                onDownloadLabels={handleDownloadLabels}
+                isDownloadDisabled={true} // Example: manage download button state
+              />
+            </div>
+            <TabsContent value="labelframe">
+              <VideoDisplay
+                imageUrl="/placeholder.svg?height=720&width=1280" // Consider making this dynamic
+                onImageClick={handleImageClick}
+                currentFrame={currentFrame}
+                totalFrames={totalFrames}
+              />
             </TabsContent>
-            <TabsContent value="password">
-              Change your password here.
-            </TabsContent>
+            <TabsContent value="preview">Change your preview here.</TabsContent>
           </Tabs>
-          <VideoDisplay
-            imageUrl="/placeholder.svg?height=720&width=1280" // Consider making this dynamic
-            onImageClick={handleImageClick}
-            currentFrame={currentFrame}
-            totalFrames={totalFrames}
-          />
         </div>
 
         <div className="w-full lg:w-80 space-y-6">
@@ -132,12 +140,6 @@ export default function VideoLabeling() {
             pointType={pointType}
             onPointTypeChange={setPointType}
             onCreateObject={handleCreateObject}
-          />
-
-          <ActionButtons
-            onLabelVideo={handleLabelVideo}
-            onDownloadLabels={handleDownloadLabels}
-            isDownloadDisabled={true} // Example: manage download button state
           />
         </div>
       </div>
