@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TypographyH4 } from "@/components/typography/typography";
-import { Plus } from "lucide-react";
+import { Plus, Undo2, Eraser } from "lucide-react";
 
 interface LabelingOptionsProps {
   selectedObject: string;
@@ -71,6 +71,20 @@ export function LabelingOptions({
               <Label htmlFor="negative">Negative</Label>
             </div>
           </RadioGroup>
+        </div>
+
+        <div className="space-y-4">
+          <Label>Modify Segmentation Points</Label>
+          <div className="flex flex-1 items-center space-x-2">
+            <Button variant="default">
+              <Undo2 className="h-4 w-4 mr-2" />
+              Undo Last
+            </Button>
+            <Button variant="destructive">
+              <Eraser className="h-4 w-4 mr-2" />
+              Clear Points
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
