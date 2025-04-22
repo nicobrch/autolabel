@@ -3,6 +3,7 @@ import { VideoDisplay } from "@/components/video-labeling/VideoDisplay";
 import { InferenceSettings } from "@/components/video-labeling/InferenceSettings";
 import { LabelingOptions } from "@/components/video-labeling/LabelingOptions";
 import { ActionButtons } from "@/components/video-labeling/ActionButtons";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function VideoLabeling() {
   const [modelCheckpoint, setModelCheckpoint] = useState("SAM2-T");
@@ -98,12 +99,26 @@ export default function VideoLabeling() {
   return (
     <div className="flex flex-col w-full p-6">
       <div className="flex flex-col lg:flex-row gap-6">
-        <VideoDisplay
-          imageUrl="/placeholder.svg?height=720&width=1280" // Consider making this dynamic
-          onImageClick={handleImageClick}
-          currentFrame={currentFrame}
-          totalFrames={totalFrames}
-        />
+        <div className="flex-1">
+          <Tabs defaultValue="account" className="w-[400px]">
+            <TabsList>
+              <TabsTrigger value="account">Account</TabsTrigger>
+              <TabsTrigger value="password">Password</TabsTrigger>
+            </TabsList>
+            <TabsContent value="account">
+              Make changes to your account here.
+            </TabsContent>
+            <TabsContent value="password">
+              Change your password here.
+            </TabsContent>
+          </Tabs>
+          <VideoDisplay
+            imageUrl="/placeholder.svg?height=720&width=1280" // Consider making this dynamic
+            onImageClick={handleImageClick}
+            currentFrame={currentFrame}
+            totalFrames={totalFrames}
+          />
+        </div>
 
         <div className="w-full lg:w-80 space-y-6">
           <InferenceSettings

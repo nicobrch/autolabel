@@ -5,11 +5,13 @@ import { Navbar } from "./Navbar";
 
 export default function AppLayout() {
   return (
-    <SidebarProvider className="font-display">
+    <SidebarProvider className="font-display h-screen">
       <AppSidebar />
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden h-full">
         <Navbar />
-        <Outlet />
+        <div className="h-full overflow-y-auto">
+          <Outlet />
+        </div>
       </div>
     </SidebarProvider>
   );
