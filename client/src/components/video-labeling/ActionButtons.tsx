@@ -1,32 +1,26 @@
 import { Button } from "@/components/ui/button";
-import { Brain, Download } from "lucide-react";
+import { Brain } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { TypographyH4 } from "../typography/typography";
 
 interface ActionButtonsProps {
   onLabelVideo: () => void; // Placeholder for future functionality
-  onDownloadLabels: () => void; // Placeholder for future functionality
-  isDownloadDisabled: boolean; // Example prop to control download button state
 }
 
-export function ActionButtons({
-  onLabelVideo,
-  onDownloadLabels,
-  isDownloadDisabled,
-}: ActionButtonsProps) {
+export function ActionButtons({ onLabelVideo }: ActionButtonsProps) {
   return (
-    <div className="flex flex-1 items-center gap-2">
-      <Button className="flex-1" onClick={onLabelVideo}>
-        <Brain className="h-4 w-4 mr-2" />
-        Label Video
-      </Button>
-      <Button
-        variant="outline"
-        className="flex-1"
-        disabled={isDownloadDisabled}
-        onClick={onDownloadLabels}
-      >
-        <Download className="h-4 w-4 mr-2" />
-        Download Labels
-      </Button>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <TypographyH4>Make Inference</TypographyH4>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button className="w-full" onClick={onLabelVideo}>
+          <Brain className="h-4 w-4 mr-2" />
+          Label Video
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
