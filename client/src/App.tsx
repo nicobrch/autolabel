@@ -6,6 +6,7 @@ const queryClient = new QueryClient();
 import AppLayout from "./components/layout/AppLayout";
 import ProjectManager from "./pages/ProjectManager";
 import VideoLabeling from "./pages/VideoLabeling";
+import VideoLabeledPreview from "./pages/VideoLabeledPreview";
 
 export default function App() {
   return (
@@ -16,6 +17,10 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route index element={<ProjectManager />} />
               <Route path="/label/" element={<VideoLabeling />} />
+              <Route
+                path="/results/:videoId"
+                element={<VideoLabeledPreview />}
+              />
             </Route>
           </Routes>
         </BrowserRouter>
