@@ -31,6 +31,31 @@ export default function VideoLabeledPreview() {
                 <TypographyH4>Download Results</TypographyH4>
               </CardTitle>
             </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="model-checkpoint">Labels</Label>
+                <Button className="w-full" variant="outline">
+                  <Nut className="h-4 w-4" />
+                  Download COCO labels
+                </Button>
+                <Button className="w-full">
+                  <Download className="h-4 w-4" />
+                  Download YOLO labels
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="model-checkpoint">Segmentation</Label>
+                <Button className="w-full" variant="outline">
+                  <Box className="h-4 w-4" />
+                  Download Video Preview
+                </Button>
+                <Button className="w-full" variant="secondary">
+                  <Drama className="h-4 w-4" />
+                  Download Object Masks
+                </Button>
+              </div>
+            </CardContent>
           </Card>
         </div>
       </div>
