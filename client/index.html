@@ -20,7 +20,7 @@
     <script>
       // Set background color based on local storage theme
       const theme = localStorage.getItem("vite-ui-theme");
-      const initialBackgroundColor = theme === "light" ? "white" : "black"; // Default to black if theme is null or dark
+      const initialBackgroundColor = theme === "light" ? "white" : "#0a0a0a"; // Default to black if theme is null or dark
       document.body.style.backgroundColor = initialBackgroundColor;
 
       // Wait a short time then make the body fully opaque for fade-in effect
