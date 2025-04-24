@@ -1,13 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8" name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vite + React + TS</title>
+    <style>
+      body {
+        /* Initially make the body transparent */
+        opacity: 0;
+        /* Define the transition for the opacity property */
+        transition: opacity 0.5s ease-in-out; /* Adjust duration and timing function as needed */
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Set background color based on local storage theme
+      const theme = localStorage.getItem("vite-ui-theme");
+      const initialBackgroundColor = theme === "light" ? "white" : "black"; // Default to black if theme is null or dark
+      document.body.style.backgroundColor = initialBackgroundColor;
+
+      // Wait a short time then make the body fully opaque for fade-in effect
+      const initialDelay = 25; // ms
+      const transitionDuration = 250; // ms, should match the CSS transition duration
+
+      setTimeout(() => {
+        document.body.style.opacity = "1";
+      }, initialDelay);
+
+      // Wait for the initial delay + transition duration, then reset the background color
+      setTimeout(() => {
+        document.body.style.backgroundColor = ""; // Reset inline background color
+      }, initialDelay + transitionDuration);
+    </script>
   </body>
 </html>
