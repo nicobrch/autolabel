@@ -9,11 +9,24 @@ export function Navbar() {
   let pathname = location.pathname;
 
   const pathnameMap: { [key: string]: string } = {
-    "/": "Project Manager",
+    "/project": "Project Manager",
     "/label": "Video Labeling",
+    "/results": "Label Results",
+    "/": "Dashboard", // Keep "/" last as a fallback or handle it explicitly
   };
 
-  const title = pathnameMap[pathname] || "Dashboard";
+  let title = "Dashboard"; // Default title
+
+  // Find the matching title based on pathname containment
+  for (const key in pathnameMap) {
+    // Ensure the key is not just "/" or handle it specifically if needed
+    // Check if pathname starts with the key (and handle the root path case)
+    if (pathname.startsWith(key) && (key !== "/" || pathname === "/")) {
+      title = pathnameMap[key];
+      break; // Found the most specific match (or the first one depending on order)
+    }
+  }
+
 
   return (
     <nav className="flex items-center justify-between p-4 h-16 border-b">
