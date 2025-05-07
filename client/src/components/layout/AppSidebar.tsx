@@ -69,10 +69,10 @@ export function AppSidebar() {
                 projects.map((project) => (
                   <SidebarMenuItem key={project.id}>
                     <SidebarMenuButton asChild>
-                      <a href={`/projects/${project.id}`}>
+                      <NavLink to={`/projects/${project.id}`}>
                         <Folder />
                         <span>{project.name}</span>
-                      </a>
+                      </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))
