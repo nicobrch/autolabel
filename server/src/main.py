@@ -110,6 +110,16 @@ async def delete_project(project_id: int, db: Session = Depends(get_db)):
     db.commit()
     return None
 
+
+@app.get("/api/v1/projects/{project_id}/videos", response_model=List[dict])
+async def list_project_videos(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    videos = db.query(Video).filter(Video.project_id == project_id).all()
+    return [sqlalchemy_to_dict(video) for video in videos]
+
 # -------------- Video CRUD Operations --------------
 
 
