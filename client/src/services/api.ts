@@ -1,3 +1,5 @@
+const apiUrl = "http://localhost:8000/api/v1";
+
 interface ProjectData {
   id: number;
   name: string;
@@ -5,7 +7,7 @@ interface ProjectData {
 }
 
 export async function fetchProjects(): Promise<ProjectData[]> {
-  const response = await fetch("http://localhost:8000/api/v1/projects");
+  const response = await fetch(`${apiUrl}/projects`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch projects");
@@ -22,7 +24,7 @@ interface CreateProjectData {
 export async function createProject(
   data: CreateProjectData
 ): Promise<ProjectData> {
-  const response = await fetch("http://localhost:8000/api/v1/projects", {
+  const response = await fetch(`${apiUrl}/projects`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -37,28 +39,33 @@ export async function createProject(
   return response.json();
 }
 
-// Add the Video type definition
 export interface Video {
-    id: string | number;
-    name: string;
-    description?: string;
-    thumbnailUrl?: string; // Optional thumbnail URL
-    // Add other relevant video properties if needed
+  id: number;
+  project_id: number;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  width: number;
+  height: number;
+  fps: number;
+  duration: number;
+  created_at: string; // ISO date string
+  updated_at: string; // ISO date string
 }
 
-// Add the function to fetch videos for a specific project
 export async function fetchVideos(projectId: string): Promise<Video[]> {
-    const response = await fetch(`/api/project/${projectId}/videos`); // Adjust API endpoint as needed
-    if (!response.ok) {
-        // Provide more specific error messages if possible
-        const errorData = await response.text(); // Try to get error details
-        console.error("Fetch videos error:", errorData);
-        throw new Error(`HTTP error! status: ${response.status} - Failed to fetch videos for project ${projectId}`);
-    }
-    try {
-        return await response.json();
-    } catch (e) {
-        console.error("Failed to parse videos JSON:", e);
-        throw new Error("Received invalid data format from server.");
-    }
+  const response = await fetch(`${apiUrl}/projects/${projectId}/videos`);
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error("Fetch videos error:", errorData);
+    throw new Error(
+      `HTTP error! status: ${response.status} - Failed to fetch videos for project ${projectId}`
+    );
+  }
+  try {
+    return await response.json();
+  } catch (e) {
+    console.error("Failed to parse videos JSON:", e);
+    throw new Error("Received invalid data format from server.");
+  }
 }
