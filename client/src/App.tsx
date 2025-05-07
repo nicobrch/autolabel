@@ -17,7 +17,7 @@ export default function App() {
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<ProjectManager />} />
-              <Route path="/project/:projectId" element={<VideoManager />} />
+              <Route path="/projects/:projectId" element={<VideoManager />} />
               <Route path="/label/:videoId" element={<VideoLabeling />} />
               <Route
                 path="/results/:videoId"
