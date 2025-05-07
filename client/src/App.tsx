@@ -4,10 +4,10 @@ import { BrowserRouter, Route, Routes } from "react-router";
 const queryClient = new QueryClient();
 
 import AppLayout from "./components/layout/AppLayout";
-import ProjectManager from "./pages/ProjectManager";
+import Dashboard from "./pages/Dashboard";
 import VideoLabeling from "./pages/VideoLabeling";
 import VideoLabeledPreview from "./pages/VideoLabeledPreview";
-import VideoManager from "./pages/VideoManager";
+import ProjectManager from "./pages/ProjectManager";
 
 export default function App() {
   return (
@@ -16,8 +16,8 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route element={<AppLayout />}>
-              <Route index element={<ProjectManager />} />
-              <Route path="/projects/:projectId" element={<VideoManager />} />
+              <Route index element={<Dashboard />} />
+              <Route path="/projects/:projectId" element={<ProjectManager />} />
               <Route path="/label/:videoId" element={<VideoLabeling />} />
               <Route
                 path="/results/:videoId"
