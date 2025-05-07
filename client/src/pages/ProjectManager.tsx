@@ -46,19 +46,16 @@ export default function ProjectManager() {
         ) : error ? (
           <div className="col-span-full flex flex-col items-center">
             <ErrorMessage error={error.message} />
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
           </div>
         ) : videos && videos.length > 0 ? (
-          // Success state - render videos
           videos.map((video) => (
             <VideoCard
               key={video.id}
               id={video.id}
-              name={video.name}
-              description={video.description}
-              imageUrl={video.thumbnailUrl || "/placeholder-image.png"} // Use a placeholder if no thumbnail
+              name={video.file_name}
+              duration={video.duration}
+              dateCreated={video.created_at}
+              imageUrl={video.file_path || "/placeholder.svg"}
             />
           ))
         ) : (
