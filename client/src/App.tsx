@@ -7,6 +7,7 @@ import AppLayout from "./components/layout/AppLayout";
 import ProjectManager from "./pages/ProjectManager";
 import VideoLabeling from "./pages/VideoLabeling";
 import VideoLabeledPreview from "./pages/VideoLabeledPreview";
+import VideoManager from "./pages/VideoManager";
 
 export default function App() {
   return (
@@ -16,7 +17,8 @@ export default function App() {
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<ProjectManager />} />
-              <Route path="/label/" element={<VideoLabeling />} />
+              <Route path="/project/:projectId" element={<VideoManager />} />
+              <Route path="/label/:videoId" element={<VideoLabeling />} />
               <Route
                 path="/results/:videoId"
                 element={<VideoLabeledPreview />}
