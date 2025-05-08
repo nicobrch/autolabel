@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDuration } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
 import { TypographyH4 } from "../typography/typography";
+import { NavLink } from "react-router";
 
 interface VideoCardProps {
   id: string | number;
@@ -21,10 +22,6 @@ export function VideoCard({
   dateCreated,
   imageUrl,
 }: VideoCardProps) {
-  const navigateTo = (path: string) => {
-    window.location.href = path;
-  };
-
   return (
     <Card className="group overflow-hidden p-0 transition-all duration-300 hover:shadow-md min-w-xs max-w-xs">
       <div className="relative overflow-hidden">
@@ -62,24 +59,18 @@ export function VideoCard({
       </CardContent>
 
       <CardFooter className="flex justify-between gap-2 pb-3 px-4">
-        <Button
-          variant="default"
-          size="sm"
-          className="flex-1"
-          onClick={() => navigateTo(`/label/${id}`)}
-        >
-          <Tag className="mr-1.5 h-4 w-4" />
-          Label
+        <Button variant="default" size="sm" className="flex-1" asChild>
+          <NavLink to={`/label/${id}`}>
+            <Tag className="mr-1.5 h-4 w-4" />
+            Label
+          </NavLink>
         </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex-1"
-          onClick={() => navigateTo(`/results/${id}`)}
-        >
-          <Download className="mr-1.5 h-4 w-4" />
-          Download
+        <Button variant="outline" size="sm" className="flex-1" asChild>
+          <NavLink to={`#`}>
+            <Download className="mr-1.5 h-4 w-4" />
+            Download
+          </NavLink>
         </Button>
       </CardFooter>
     </Card>
