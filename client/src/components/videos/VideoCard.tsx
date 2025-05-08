@@ -24,7 +24,7 @@ export function VideoCard({
   imageUrl,
 }: VideoCardProps) {
   return (
-    <Card className="group overflow-hidden p-0 transition-all duration-300 hover:shadow-md min-w-xs max-w-xs">
+    <Card className="group overflow-hidden p-0 transition-all duration-300 hover:shadow-md">
       <div className="relative overflow-hidden">
         <img
           src={imageUrl || "/placeholder.svg"}
