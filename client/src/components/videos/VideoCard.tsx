@@ -66,7 +66,7 @@ export function VideoCard({
         </Button>
 
         <Button variant="outline" size="sm" className="flex-1" asChild>
-          <NavLink to={`#`}>
+          <NavLink to={`/results/${id}`}>
             <Download className="mr-1.5 h-4 w-4" />
             Download
           </NavLink>
