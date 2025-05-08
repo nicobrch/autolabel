@@ -13,9 +13,13 @@ import { Upload, X } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
-export function UploadFileDropzone() {
-  const [files, setFiles] = React.useState<File[]>([]);
-
+export function UploadFileDropzone({
+  files,
+  setFiles,
+}: {
+  files: File[];
+  setFiles: React.Dispatch<React.SetStateAction<File[]>>;
+}) {
   const onFileReject = React.useCallback((file: File, message: string) => {
     toast(message, {
       description: `"${
@@ -27,7 +31,7 @@ export function UploadFileDropzone() {
   return (
     <FileUpload
       maxFiles={1}
-      maxSize={5 * 1024 * 1024}
+      maxSize={25 * 1024 * 1024}
       className="w-full max-w-md"
       value={files}
       onValueChange={setFiles}
