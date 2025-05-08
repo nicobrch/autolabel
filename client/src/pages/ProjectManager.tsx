@@ -7,7 +7,7 @@ import { ErrorMessage } from "@/components/ui/errormsg";
 import { useParams, NavLink } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
+import { UploadVideoForm } from "@/components/videos/UploadVideoForm";
 import { Upload } from "lucide-react";
 
 export default function ProjectManager() {
@@ -46,7 +46,7 @@ export default function ProjectManager() {
               Upload Video
             </Button>
           </DialogTrigger>
-          <CreateProjectForm setIsOpen={setIsOpen} />
+          <UploadVideoForm setIsOpen={setIsOpen} />
         </Dialog>
       </div>
 
