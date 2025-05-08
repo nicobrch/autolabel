@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { fetchVideos } from "@/services/api";
@@ -5,8 +6,13 @@ import { VideoCard } from "@/components/videos/VideoCard";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { useParams, NavLink } from "react-router";
 import { ArrowLeft } from "lucide-react";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
+import { Upload } from "lucide-react";
 
 export default function ProjectManager() {
+  const [isOpen, setIsOpen] = useState(false);
+
   const { projectId } = useParams<{ projectId: string }>();
 
   if (!projectId) {
@@ -29,13 +35,19 @@ export default function ProjectManager() {
       <div className="mb-6 flex items-center gap-4">
         <Button variant="outline" className="gap-2" asChild>
           <NavLink to="/">
-            {" "}
-            {/* NavLink back to the project list */}
             <ArrowLeft className="h-4 w-4" />
             Back to Projects
           </NavLink>
         </Button>
-        {/* Add other controls if needed, e.g., Upload Video */}
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Upload className="h-4 w-4" />
+              Upload Video
+            </Button>
+          </DialogTrigger>
+          <CreateProjectForm setIsOpen={setIsOpen} />
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
