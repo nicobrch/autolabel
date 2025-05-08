@@ -35,7 +35,7 @@ export function VideoCard({
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.onerror = null;
-            target.src = "/placeholder.svg?height=200&width=320";
+            target.src = "/placeholder.svg?height=1280&width=720";
           }}
         />
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -52,11 +52,9 @@ export function VideoCard({
         <TypographyH4>{getFileNameWithoutExtension(name)}</TypographyH4>
       </CardTitle>
 
-      <CardContent>
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Calendar className="mr-1.5 h-4 w-4" />
-          {formatDate(dateCreated)}
-        </div>
+      <CardContent className="flex items-center text-sm text-muted-foreground -mt-2">
+        <Calendar className="mr-1.5 h-4 w-4" />
+        {formatDate(dateCreated)}
       </CardContent>
 
       <CardFooter className="flex justify-between gap-2 pb-3 px-4">
