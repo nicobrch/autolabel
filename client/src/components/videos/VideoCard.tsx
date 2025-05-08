@@ -6,6 +6,7 @@ import { formatDuration } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
 import { TypographyH4 } from "../typography/typography";
 import { NavLink } from "react-router";
+import { getFileNameWithoutExtension } from "@/lib/utils";
 
 interface VideoCardProps {
   id: string | number;
@@ -48,7 +49,7 @@ export function VideoCard({
       </div>
 
       <CardTitle className="px-4">
-        <TypographyH4>{name}</TypographyH4>
+        <TypographyH4>{getFileNameWithoutExtension(name)}</TypographyH4>
       </CardTitle>
 
       <CardContent>

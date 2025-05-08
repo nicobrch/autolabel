@@ -5,23 +5,25 @@ import { Label } from "@/components/ui/label";
 import { uploadVideoFile } from "@/services/api";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  DialogTitle,
   DialogContent,
   DialogClose,
   DialogFooter,
   DialogHeader,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { DialogTitle } from "@radix-ui/react-dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { UploadFileDropzone } from "@/components/videos/UploadFileDropzone";
 import { useParams } from "react-router";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getFileNameWithoutExtension } from "@/lib/utils";
 
 export function UploadVideoForm({
   setIsOpen,
@@ -41,16 +43,10 @@ export function UploadVideoForm({
   useEffect(() => {
     if (files.length > 0 && files[0]) {
       const fileName = files[0].name;
-      const nameWithoutExtension = fileName.substring(
-        0,
-        fileName.lastIndexOf(".")
-      );
-      if (
-        name === "" ||
-        name === files[0].name.substring(0, files[0].name.lastIndexOf("."))
-      ) {
-        setName(nameWithoutExtension);
-      }
+      const nameWithoutExtension = getFileNameWithoutExtension(fileName);
+      setName(nameWithoutExtension);
+    } else {
+      setName("");
     }
   }, [files]); // Rerun effect when files array changes
 
@@ -113,11 +109,15 @@ export function UploadVideoForm({
                   <SelectValue placeholder="Select a resolution" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Original">Original</SelectItem>
-                  <SelectItem value="854x480">854x480 (FWVGA)</SelectItem>
-                  <SelectItem value="960x540">960x540 (qHD)</SelectItem>
-                  <SelectItem value="1280x720">1280x720 (HD)</SelectItem>
-                  <SelectItem value="1920x1080">1920x1080 (Full HD)</SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="Original">Original</SelectItem>
+                    <SelectItem value="854x480">854x480 (FWVGA)</SelectItem>
+                    <SelectItem value="960x540">960x540 (qHD)</SelectItem>
+                    <SelectItem value="1280x720">1280x720 (HD)</SelectItem>
+                    <SelectItem value="1920x1080">
+                      1920x1080 (Full HD)
+                    </SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

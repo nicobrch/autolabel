@@ -5,13 +5,13 @@ import { Label } from "@/components/ui/label";
 import { createProject } from "@/services/api";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  DialogTitle,
   DialogContent,
   DialogClose,
   DialogFooter,
   DialogHeader,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { DialogTitle } from "@radix-ui/react-dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
 
 export function CreateProjectForm({
