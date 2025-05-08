@@ -69,3 +69,49 @@ export async function fetchVideos(projectId: string): Promise<Video[]> {
     throw new Error("Received invalid data format from server.");
   }
 }
+
+export async function uploadVideoFile(
+  projectId: number,
+  file: File,
+  resolution?: string,
+  frameSkip?: number
+): Promise<Video> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  let url = `${apiUrl}/videos/upload?project_id=${projectId}`;
+  if (resolution) {
+    url += `&resolution=${encodeURIComponent(resolution)}`;
+  }
+  if (frameSkip !== undefined) {
+    url += `&frame_skip=${frameSkip}`;
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData,
+    // Note: Do not set 'Content-Type' header manually when using FormData with fetch,
+    // the browser will set it correctly with the required boundary.
+  });
+
+  if (!response.ok) {
+    let errorDetail = "Failed to upload video";
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.detail) {
+        errorDetail = errorData.detail;
+      } else if (typeof errorData === "string") {
+        errorDetail = errorData;
+      }
+    } catch (e) {
+      // If response is not JSON or parsing fails, try to get text
+      const textError = await response.text().catch(() => "");
+      if (textError) {
+        errorDetail = textError;
+      }
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}

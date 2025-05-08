@@ -151,6 +151,10 @@ async def upload_video(
     file: UploadFile = File(...),
     project_id: int = Query(...,
                             description="Project ID to associate with this video"),
+    resolution: Optional[str] = Query(
+        None, description="Resolution of the video, e.g., '1280x720'"),  # Changed : to x
+    frame_skip: Optional[int] = Query(
+        None, description="Frame skip value for video processing"),
     db: Session = Depends(get_db)
 ):
     # Check if project exists
@@ -167,14 +171,22 @@ async def upload_video(
 
     # Save the file
     file_path = videos_dir / file.filename
-    with open(file_path, "wb") as buffer:
-        contents = await file.read()
-        buffer.write(contents)
+    try:
+        with open(file_path, "wb") as buffer:
+            contents = await file.read()
+            buffer.write(contents)
+    except IOError as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save video file: {e}")
 
     metadata = extract_video_metadata(file_path)
     if not metadata:
+        # Clean up the saved file if metadata extraction fails
+        if file_path.exists():
+            file_path.unlink()
         raise HTTPException(
             status_code=500, detail="Failed to extract video metadata")
+
     width = metadata.get("width")
     height = metadata.get("height")
     fps = metadata.get("fps")
@@ -190,11 +202,19 @@ async def upload_video(
         width=width,
         height=height,
         fps=fps,
-        duration=duration
+        duration=duration,
     )
-    db.add(new_video)
-    db.commit()
-    db.refresh(new_video)
+    try:
+        db.add(new_video)
+        db.commit()
+        db.refresh(new_video)
+    except Exception as e:
+        # Clean up the saved file if database operation fails
+        if file_path.exists():
+            file_path.unlink()
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save video metadata to database: {e}")
 
     return sqlalchemy_to_dict(new_video)
 
