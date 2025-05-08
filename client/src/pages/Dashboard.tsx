@@ -7,6 +7,7 @@ import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { useState } from "react";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 export default function Dashboard() {
   const {
@@ -53,7 +54,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {isPending ? (
           <div className="col-span-full flex justify-center">
-            <p>Loading projects...</p>
+            <LoadingSpinner />
           </div>
         ) : error ? (
           <div className="col-span-full flex flex-col items-center">

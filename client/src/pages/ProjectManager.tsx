@@ -9,6 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { UploadVideoForm } from "@/components/videos/UploadVideoForm";
 import { Upload } from "lucide-react";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 export default function ProjectManager() {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,7 +54,7 @@ export default function ProjectManager() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5">
         {isPending ? (
           <div className="col-span-full flex justify-center">
-            <p>Loading videos...</p>
+            <LoadingSpinner />
           </div>
         ) : error ? (
           <div className="col-span-full flex flex-col items-center">
