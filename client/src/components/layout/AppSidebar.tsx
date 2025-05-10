@@ -28,7 +28,7 @@ export function AppSidebar() {
 
   const appItems = [
     {
-      title: "All content",
+      title: "Dashboard",
       url: "/",
       icon: LayoutGrid,
     },
@@ -58,7 +58,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>Projects</SidebarGroupLabel>
+          <SidebarGroupLabel>My Projects</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {isPending ? (
