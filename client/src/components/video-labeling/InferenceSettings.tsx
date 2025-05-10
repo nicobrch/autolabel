@@ -28,7 +28,10 @@ export function InferenceSettings({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="model-checkpoint">Model Checkpoint</Label>
-          <Select value={modelCheckpoint} onValueChange={onModelCheckpointChange}>
+          <Select
+            value={modelCheckpoint}
+            onValueChange={onModelCheckpointChange}
+          >
             <SelectTrigger id="model-checkpoint" className="w-full">
               <SelectValue placeholder="Select model" />
             </SelectTrigger>

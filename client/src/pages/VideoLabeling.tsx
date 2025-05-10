@@ -63,7 +63,7 @@ export default function VideoLabeling() {
           console.error(
             "Error sending point: Received non-JSON response",
             response.status,
-            response.statusText
+            response.statusText,
           );
         }
         // Optionally, show an error message to the user

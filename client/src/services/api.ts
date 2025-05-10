@@ -22,7 +22,7 @@ interface CreateProjectData {
 }
 
 export async function createProject(
-  data: CreateProjectData
+  data: CreateProjectData,
 ): Promise<ProjectData> {
   const response = await fetch(`${apiUrl}/projects`, {
     method: "POST",
@@ -59,7 +59,7 @@ export async function fetchVideos(projectId: string): Promise<Video[]> {
     const errorData = await response.text();
     console.error("Fetch videos error:", errorData);
     throw new Error(
-      `HTTP error! status: ${response.status} - Failed to fetch videos for project ${projectId}`
+      `HTTP error! status: ${response.status} - Failed to fetch videos for project ${projectId}`,
     );
   }
   try {
@@ -74,7 +74,7 @@ export async function uploadVideoFile(
   projectId: number,
   file: File,
   resolution?: string,
-  frameSkip?: number
+  frameSkip?: number,
 ): Promise<Video> {
   const formData = new FormData();
   formData.append("file", file);

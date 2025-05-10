@@ -66,7 +66,7 @@ export function UploadVideoForm({
         parseInt(projectId!),
         files[0],
         resolution,
-        frameSkip
+        frameSkip,
       );
       queryClient.invalidateQueries({ queryKey: ["videos", projectId] }); // Update query key
       setIsOpen(false);
