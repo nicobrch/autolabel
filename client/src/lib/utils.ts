@@ -21,6 +21,12 @@ export const formatDate = (dateString: string) => {
   return `${year}-${month}-${day}`;
 };
 
+// Capitalize the first letter of a string
+export const capitalize = (s: string) => {
+  if (s.length === 0) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
 export const getFileNameWithoutExtension = (filePath: string): string => {
   // Get the base name (the part after the last slash or the whole string if no slash)
   const lastSlashIndex = filePath.lastIndexOf("/");

@@ -8,6 +8,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useLocation, NavLink } from "react-router";
+import { capitalize } from "@/lib/utils";
 
 export default function AppBreadcrumb() {
   const location = useLocation();
@@ -29,10 +30,14 @@ export default function AppBreadcrumb() {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {isLast ? (
-                  <BreadcrumbPage>{decodeURIComponent(segment)}</BreadcrumbPage>
+                  <BreadcrumbPage>
+                    {capitalize(decodeURIComponent(segment))}
+                  </BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
-                    <NavLink to={to}>{decodeURIComponent(segment)}</NavLink>
+                    <NavLink to={to}>
+                      {capitalize(decodeURIComponent(segment))}
+                    </NavLink>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
