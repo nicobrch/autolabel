@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Download, Nut, Box, Drama } from "lucide-react";
 import { useParams } from "react-router";
+import { ContentHeader } from "@/components/layout/ContentHeader";
 
 export default function VideoLabeledPreview() {
   let { videoId } = useParams();
@@ -28,6 +29,7 @@ export default function VideoLabeledPreview() {
 
   return (
     <div className="flex flex-col w-full p-4">
+      <ContentHeader />
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
           <AspectRatio ratio={16 / 9}>

@@ -8,6 +8,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { useState } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import { ContentHeader } from "@/components/layout/ContentHeader";
 
 export default function Dashboard() {
   const {
@@ -23,7 +24,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-4">
-      <div className="mb-6 flex items-center gap-4">
+      <ContentHeader>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -49,7 +50,7 @@ export default function Dashboard() {
           </svg>
           Import Project
         </Button>
-      </div>
+      </ContentHeader>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {isPending ? (

@@ -10,7 +10,7 @@ import {
 import { useLocation, NavLink } from "react-router";
 import { capitalize } from "@/lib/utils";
 
-export default function AppBreadcrumb() {
+export function AppBreadcrumb() {
   const location = useLocation();
   const pathnames = location.pathname.split("/").filter(Boolean);
   return (
@@ -18,12 +18,15 @@ export default function AppBreadcrumb() {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <NavLink to={"/"}>Home</NavLink>
+            <NavLink to={"/"}>Dashboard</NavLink>
           </BreadcrumbLink>
         </BreadcrumbItem>
         {pathnames.map((segment, index) => {
           const to = "/" + pathnames.slice(0, index + 1).join("/");
           const isLast = index === pathnames.length - 1;
+          if (segment === "projects") {
+            return null;
+          }
 
           return (
             <React.Fragment key={to}>

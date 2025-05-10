@@ -4,13 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchVideos } from "@/services/api";
 import { VideoCard } from "@/components/videos/VideoCard";
 import { ErrorMessage } from "@/components/ui/errormsg";
-import { useParams, NavLink } from "react-router";
-import { ArrowLeft } from "lucide-react";
+import { useParams } from "react-router";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { UploadVideoForm } from "@/components/videos/UploadVideoForm";
 import { Upload } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import AppBreadcrumb from "@/components/layout/AppBreadcrumb";
+import { ContentHeader } from "@/components/layout/ContentHeader";
 
 export default function ProjectManager() {
   const [isOpen, setIsOpen] = useState(false);
@@ -34,8 +33,7 @@ export default function ProjectManager() {
 
   return (
     <div className="p-4">
-      <div className="mb-6 flex items-center gap-4">
-        <AppBreadcrumb />
+      <ContentHeader>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -45,7 +43,7 @@ export default function ProjectManager() {
           </DialogTrigger>
           <UploadVideoForm setIsOpen={setIsOpen} />
         </Dialog>
-      </div>
+      </ContentHeader>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5">
         {isPending ? (
