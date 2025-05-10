@@ -3,6 +3,9 @@ import { VideoDisplay } from "@/components/video-labeling/VideoDisplay";
 import { InferenceSettings } from "@/components/video-labeling/InferenceSettings";
 import { LabelingOptions } from "@/components/video-labeling/LabelingOptions";
 import { ActionButtons } from "@/components/video-labeling/ActionButtons";
+import { Button } from "@/components/ui/button";
+import { NavLink } from "react-router";
+import { ArrowLeft } from "lucide-react";
 
 export default function VideoLabeling() {
   const [modelCheckpoint, setModelCheckpoint] = useState("SAM2-T");
@@ -91,9 +94,15 @@ export default function VideoLabeling() {
   };
 
   return (
-    <div className="flex flex-col w-full p-6">
+    <div className="flex flex-col w-full p-4">
       <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-1">
+        <div className="flex-1 space-y-2">
+          <Button variant="outline" className="gap-2" asChild>
+            <NavLink to="/projects/1">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Projects
+            </NavLink>
+          </Button>
           <VideoDisplay
             imageUrl="/placeholder.svg?height=720&width=1280" // Consider making this dynamic
             onImageClick={handleImageClick}

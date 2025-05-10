@@ -22,7 +22,7 @@ export default function Dashboard() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="p-6">
+    <div className="p-4">
       <div className="mb-6 flex items-center gap-4">
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>

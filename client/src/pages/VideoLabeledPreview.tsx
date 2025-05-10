@@ -27,7 +27,7 @@ export default function VideoLabeledPreview() {
   };
 
   return (
-    <div className="flex flex-col w-full p-6">
+    <div className="flex flex-col w-full p-4">
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
           <AspectRatio ratio={16 / 9}>

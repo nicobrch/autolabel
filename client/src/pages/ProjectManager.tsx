@@ -32,7 +32,7 @@ export default function ProjectManager() {
   });
 
   return (
-    <div className="p-6">
+    <div className="p-4">
       <div className="mb-6 flex items-center gap-4">
         <Button variant="outline" className="gap-2" asChild>
           <NavLink to="/">
