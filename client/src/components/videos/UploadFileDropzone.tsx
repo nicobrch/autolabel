@@ -32,6 +32,7 @@ export function UploadFileDropzone({
     <FileUpload
       maxFiles={1}
       maxSize={25 * 1024 * 1024}
+      accept=".mp4"
       className="w-full max-w-md"
       value={files}
       onValueChange={setFiles}
