@@ -3,9 +3,6 @@ import { VideoDisplay } from "@/components/video-labeling/VideoDisplay";
 import { InferenceSettings } from "@/components/video-labeling/InferenceSettings";
 import { LabelingOptions } from "@/components/video-labeling/LabelingOptions";
 import { ActionButtons } from "@/components/video-labeling/ActionButtons";
-import { Button } from "@/components/ui/button";
-import { NavLink } from "react-router";
-import { ArrowLeft } from "lucide-react";
 import { ContentHeader } from "@/components/layout/ContentHeader";
 
 export default function VideoLabeling() {

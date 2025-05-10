@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/utils";
 import { TypographyH4 } from "../typography/typography";
 import { NavLink } from "react-router";
 import { getFileNameWithoutExtension } from "@/lib/utils";
+import { useParams } from "react-router";
 
 interface VideoCardProps {
   id: string | number;
@@ -23,6 +24,8 @@ export function VideoCard({
   dateCreated,
   imageUrl,
 }: VideoCardProps) {
+  const { projectId } = useParams<{ projectId: string }>();
+
   return (
     <Card className="group overflow-hidden p-0 transition-all duration-300 hover:shadow-md">
       <div className="relative overflow-hidden">
@@ -59,14 +62,14 @@ export function VideoCard({
 
       <CardFooter className="flex justify-between gap-2 pb-3 px-4">
         <Button variant="default" size="sm" className="flex-1" asChild>
-          <NavLink to={`/label/${id}`}>
+          <NavLink to={`/projects/${projectId}/label/${id}`}>
             <Tag className="mr-1.5 h-4 w-4" />
             Label
           </NavLink>
         </Button>
 
         <Button variant="outline" size="sm" className="flex-1" asChild>
-          <NavLink to={`/results/${id}`}>
+          <NavLink to={`/projects/${projectId}/download/${id}`}>
             <Download className="mr-1.5 h-4 w-4" />
             Download
           </NavLink>

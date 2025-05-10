@@ -24,10 +24,6 @@ export function AppBreadcrumb() {
         {pathnames.map((segment, index) => {
           const to = "/" + pathnames.slice(0, index + 1).join("/");
           const isLast = index === pathnames.length - 1;
-          if (segment === "projects") {
-            return null;
-          }
-
           return (
             <React.Fragment key={to}>
               <BreadcrumbSeparator />
