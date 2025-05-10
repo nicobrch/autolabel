@@ -10,6 +10,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { UploadVideoForm } from "@/components/videos/UploadVideoForm";
 import { Upload } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import AppBreadcrumb from "@/components/layout/AppBreadcrumb";
 
 export default function ProjectManager() {
   const [isOpen, setIsOpen] = useState(false);
@@ -34,12 +35,7 @@ export default function ProjectManager() {
   return (
     <div className="p-4">
       <div className="mb-6 flex items-center gap-4">
-        <Button variant="outline" className="gap-2" asChild>
-          <NavLink to="/">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Projects
-          </NavLink>
-        </Button>
+        <AppBreadcrumb />
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">

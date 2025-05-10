@@ -96,11 +96,11 @@ export default function VideoLabeling() {
   return (
     <div className="flex flex-col w-full p-4">
       <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-6">
           <Button variant="outline" className="gap-2" asChild>
             <NavLink to="/projects/1">
               <ArrowLeft className="h-4 w-4" />
-              Back to Projects
+              Back
             </NavLink>
           </Button>
           <VideoDisplay
@@ -111,7 +111,7 @@ export default function VideoLabeling() {
           />
         </div>
 
-        <div className="w-full lg:w-80 space-y-6">
+        <div className="w-full lg:w-80 space-y-6 mt-6">
           <InferenceSettings
             modelCheckpoint={modelCheckpoint}
             onModelCheckpointChange={setModelCheckpoint}
