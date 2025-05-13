@@ -84,7 +84,7 @@ export async function uploadVideoFile(
     url += `&resolution=${encodeURIComponent(resolution)}`;
   }
   if (frameSkip !== undefined) {
-    url += `&frame_skip=${frameSkip}`;
+    url += `&frame_step=${frameSkip}`;
   }
 
   const response = await fetch(url, {
