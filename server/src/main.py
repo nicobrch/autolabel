@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import subprocess
 import uvicorn
+from fastapi.staticfiles import StaticFiles
+from os.path import abspath
 
 app = FastAPI(
     title="AutoLabel API",
@@ -29,6 +31,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files directories
+app.mount("/videos", StaticFiles(directory=abspath("videos")), name="videos")
+app.mount("/data", StaticFiles(directory=abspath("data")), name="data")
 
 
 @app.on_event("startup")
