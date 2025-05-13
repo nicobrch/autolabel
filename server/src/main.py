@@ -219,5 +219,26 @@ async def upload_video(
 
     return sqlalchemy_to_dict(new_video)
 
+
+# Get the number of frames in a video, if already extracted and available
+@app.get("/api/v1/videos/{video_id}/frames/count", response_model=dict)
+async def get_frame_count(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Extract the file name without extension
+    name = Path(video.file_path).stem
+
+    # Check if frames are already extracted
+    frames_dir = Path("data/frames") / str(name) / "original"
+    print(f"Frames directory: {frames_dir}")
+    if not frames_dir.exists():
+        raise HTTPException(
+            status_code=404, detail=f"Frames not extracted for this video {frames_dir}")
+
+    frame_count = len(list(frames_dir.glob("*.jpg")))
+    return {"frame_count": frame_count}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
