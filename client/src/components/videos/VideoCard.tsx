@@ -1,8 +1,14 @@
 import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Tag, Download } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { formatDuration } from "@/lib/utils";
+import {
+  Calendar,
+  Tag,
+  Download,
+  Clock,
+  Save,
+  Proportions,
+} from "lucide-react";
+import { formatDuration, formatFileSize } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
 import { TypographyH4 } from "../typography/typography";
 import { NavLink } from "react-router";
@@ -13,51 +19,63 @@ interface VideoCardProps {
   id: string | number;
   name: string;
   duration: number;
+  size: number;
+  resolution: string;
   dateCreated: string;
-  imageUrl: string;
+  videoPath: string;
 }
 
 export function VideoCard({
   id,
   name,
   duration,
+  size,
+  resolution,
   dateCreated,
-  imageUrl,
+  videoPath,
 }: VideoCardProps) {
   const { projectId } = useParams<{ projectId: string }>();
 
   return (
     <Card className="group overflow-hidden p-0 transition-all duration-300 hover:shadow-md">
       <div className="relative overflow-hidden">
-        <img
-          src={imageUrl || "/placeholder.svg"}
+        <video
+          src={videoPath || "/placeholder.svg"}
           width={1280}
           height={720}
-          alt={`Thumbnail for ${name}`}
-          className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.onerror = null;
-            target.src = "/placeholder.svg?height=1280&width=720";
-          }}
+          poster="/placeholder.svg"
+          className="aspect-video w-full object-cover"
+          controls
+          muted
+          preload="metadata"
         />
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <Badge
-            variant="secondary"
-            className="bg-background/50 hover:bg-background/60"
-          >
-            {typeof duration === "number" ? formatDuration(duration) : duration}
-          </Badge>
-        </div>
       </div>
 
       <CardTitle className="px-4">
         <TypographyH4>{getFileNameWithoutExtension(name)}</TypographyH4>
       </CardTitle>
 
-      <CardContent className="flex items-center text-sm text-muted-foreground -mt-2">
-        <Calendar className="mr-1.5 h-4 w-4" />
-        {formatDate(dateCreated)}
+      <CardContent className="flex flex-col space-y-2 text-sm text-muted-foreground -mt-2">
+        <div className="flex justify-between">
+          <div className="flex items-center">
+            <Calendar className="mr-1.5 h-4 w-4" />
+            {formatDate(dateCreated)}
+          </div>
+          <div className="flex items-center">
+            <Clock className="mr-1.5 h-4 w-4" />
+            {formatDuration(duration)}
+          </div>
+        </div>
+        <div className="flex justify-between">
+          <div className="flex items-center">
+            <Save className="mr-1.5 h-4 w-4" />
+            {formatFileSize(size)}
+          </div>
+          <div className="flex items-center">
+            <Proportions className="mr-1.5 h-4 w-4" />
+            {resolution}
+          </div>
+        </div>
       </CardContent>
 
       <CardFooter className="flex justify-between gap-2 pb-3 px-4">

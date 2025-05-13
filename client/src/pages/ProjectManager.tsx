@@ -25,10 +25,9 @@ export default function ProjectManager() {
     error,
     data: videos,
   } = useQuery({
-    // Include projectId in the query key to refetch when it changes
     queryKey: ["videos", projectId],
     queryFn: () => fetchVideos(projectId),
-    enabled: !!projectId, // Only run the query if projectId is available
+    enabled: !!projectId,
   });
 
   return (
@@ -61,8 +60,10 @@ export default function ProjectManager() {
               id={video.id}
               name={video.file_name}
               duration={video.duration}
+              size={video.file_size}
+              resolution={`${video.width}x${video.height}`}
               dateCreated={video.created_at}
-              imageUrl={video.file_path || "/placeholder.svg"}
+              videoPath={`http://localhost:8000/videos/${video.file_name}`}
             />
           ))
         ) : (
