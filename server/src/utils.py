@@ -157,6 +157,7 @@ def extract_frames_at_frame_step(
 ) -> Optional[Path]:
     """
     Extract frames from a video at a specified frame step using ffmpeg.
+    Saves all frames to the filesystem but only adds the first frame to the database.
 
     Args:
         video_path: Path to the video file
@@ -166,23 +167,27 @@ def extract_frames_at_frame_step(
     Returns:
         Path to the directory containing extracted frames
     """
-    # Check if the video file exists
-    if not os.path.exists(video_path):
-        logger.error(f"Video file '{video_path}' not found")
-        raise FileNotFoundError(f"Video file '{video_path}' not found.")
+    # Convert video_path to string if it's a Path object
+    video_path_str = str(video_path) if isinstance(
+        video_path, Path) else video_path
 
-    # Check if the video exists in the database
-    video = db.query(Video).filter_by(file_path=video_path).first()
+    # Check if the video file exists
+    if not os.path.exists(video_path_str):
+        logger.error(f"Video file '{video_path_str}' not found")
+        raise FileNotFoundError(f"Video file '{video_path_str}' not found.")
+
+    # Check if the video exists in the database - ensure we use a string for the query
+    video = db.query(Video).filter(Video.file_path == video_path_str).first()
     if not video:
-        logger.error(f"Video '{video_path}' not found in database")
-        raise ValueError(f"Video '{video_path}' not found in database.")
+        logger.error(f"Video '{video_path_str}' not found in database")
+        raise ValueError(f"Video '{video_path_str}' not found in database.")
 
     # Create base frames directory if it doesn't exist
     base_frames_dir = Path("data/frames")
     base_frames_dir.mkdir(exist_ok=True)
 
     # Create video frames directory if it doesn't exist
-    video_name = Path(video_path).stem
+    video_name = Path(video_path_str).stem
     frames_dir = base_frames_dir / video_name / \
         "original"  # e.g. "data/frames/video_name/original"
     frames_dir.mkdir(parents=True, exist_ok=True)
@@ -192,13 +197,13 @@ def extract_frames_at_frame_step(
         file.unlink()
 
     # Remove existing frames from the database, if any
-    db.query(Frame).filter_by(video_id=video.id).delete()
+    db.query(Frame).filter(Frame.video_id == video.id).delete()
     db.commit()
     db.refresh(video)
 
     try:
         # Log extraction info
-        extraction_msg = f"Extracting frames from '{video_path}' with step {frame_step}"
+        extraction_msg = f"Extracting frames from '{video_path_str}' with step {frame_step}"
         logger.info(extraction_msg)
 
         # Prepare ffmpeg command to extract frames
@@ -206,7 +211,7 @@ def extract_frames_at_frame_step(
 
         cmd = [
             "ffmpeg",
-            "-i", video_path,
+            "-i", video_path_str,  # Use the string version here
             "-vsync", "vfr",
             "-vf", vf_option,
             str(frames_dir / "%04d.jpg"),
@@ -217,25 +222,29 @@ def extract_frames_at_frame_step(
 
         # Check if frames were extracted
         if not any(frames_dir.glob("*.jpg")):
-            logger.error(f"No frames were extracted from video '{video_path}'")
+            logger.error(
+                f"No frames were extracted from video '{video_path_str}'")
             raise ValueError(
-                f"No frames were extracted from video '{video_path}'.")
+                f"No frames were extracted from video '{video_path_str}'.")
 
-        # Store frame data in the database
+        # Get all extracted frames
         frames = get_frames_list(frames_dir)
-        for frame in frames:
-            # Create a new Frame object
+
+        # Store only the first frame in the database
+        if frames:
+            first_frame = frames[0]
+            # Create a new Frame object for just the first frame - without frame_number parameter
             new_frame = Frame(
                 video_id=video.id,
-                frame_number=int(frame.stem),
-                file_path=str(frame)
+                file_path=str(first_frame)
             )
             db.add(new_frame)
-
-        db.commit()
+            db.commit()
+            logger.info(
+                f"Added first frame ({first_frame.name}) to database for video ID {video.id}")
 
         # Log completion info
-        completion_msg = f"Extracted {len(frames)} frames from '{video_path}' to '{frames_dir}'"
+        completion_msg = f"Extracted {len(frames)} frames from '{video_path_str}' to '{frames_dir}' (only first frame stored in DB)"
         logger.info(completion_msg)
 
         return frames_dir

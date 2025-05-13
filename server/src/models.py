@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, LargeBinary
 from db import Base
@@ -39,7 +38,6 @@ class Frame(Base):
     id = Column(Integer, primary_key=True)
     video_id = Column(Integer, ForeignKey(
         'videos.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
-    frame_number = Column(Integer, nullable=False)
     file_path = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=datetime.now(timezone.utc),
@@ -63,8 +61,6 @@ class Mask(Base):
     id = Column(Integer, primary_key=True)
     object_id = Column(Integer, ForeignKey(
         'objects.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
-    frame_id = Column(Integer, ForeignKey(
-        'frames.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
     mask = Column(LargeBinary, nullable=False)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=datetime.now(timezone.utc),
