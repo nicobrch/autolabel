@@ -154,7 +154,7 @@ async def upload_video(
     resolution: Optional[str] = Query(
         None, description="Resolution of the video, e.g., '1280x720'"),  # Changed : to x
     frame_skip: Optional[int] = Query(
-        None, description="Frame skip value for video processing"),
+        10, description="Frame skip value for video processing"),
     db: Session = Depends(get_db)
 ):
     # Check if project exists
@@ -208,6 +208,20 @@ async def upload_video(
         db.add(new_video)
         db.commit()
         db.refresh(new_video)
+
+        # Automatically extract frames after successful video upload
+        if new_video.id:
+            frames_dir = extract_frames_at_frame_step(
+                str(file_path), frame_skip, resolution, db)
+            if frames_dir:
+                # Count extracted frames
+                frame_count = db.query(Frame).filter(
+                    Frame.video_id == new_video.id).count()
+                new_video.frames_extracted = True
+                new_video.frame_count = frame_count
+                db.commit()
+                db.refresh(new_video)
+
     except Exception as e:
         # Clean up the saved file if database operation fails
         if file_path.exists():
@@ -229,7 +243,7 @@ async def delete_video(video_id: int, db: Session = Depends(get_db)):
     try:
         if Path(video.file_path).exists():
             Path(video.file_path).unlink()
-    except Exception as e:
+    except Exception:
         # Log the error but continue with DB deletion
         pass
 
@@ -267,13 +281,16 @@ async def get_frame(frame_id: int, db: Session = Depends(get_db)):
 async def extract_frames(
     video_id: int,
     frame_step: int = Query(10, description="Extract every Nth frame"),
+    resolution: Optional[str] = Query(
+        None, description="Resolution to resize frames (format: 'WIDTHxHEIGHT')"),
     db: Session = Depends(get_db)
 ):
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    frames_dir = extract_frames_at_frame_step(video.file_path, frame_step, db)
+    frames_dir = extract_frames_at_frame_step(
+        video.file_path, frame_step, resolution, db)
     if not frames_dir:
         raise HTTPException(status_code=500, detail="Failed to extract frames")
 
