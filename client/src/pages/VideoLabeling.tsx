@@ -1,17 +1,39 @@
-import { useState, MouseEvent } from "react";
+import { useState, MouseEvent, useEffect } from "react";
 import { VideoDisplay } from "@/components/video-labeling/VideoDisplay";
 import { InferenceSettings } from "@/components/video-labeling/InferenceSettings";
 import { LabelingOptions } from "@/components/video-labeling/LabelingOptions";
 import { ActionButtons } from "@/components/video-labeling/ActionButtons";
 import { ContentHeader } from "@/components/layout/ContentHeader";
+import { useParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
+import { fetchVideoFrameCount } from "@/services/api";
+import { ErrorMessage } from "@/components/ui/errormsg";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 export default function VideoLabeling() {
+  const { videoId } = useParams<{ videoId: string }>();
+
   const [modelCheckpoint, setModelCheckpoint] = useState("SAM2-T");
   const [selectedObject, setSelectedObject] = useState("Person");
   const [pointType, setPointType] = useState("positive");
-  // Add state for frame numbers if dynamic
   const currentFrame = 1;
-  const totalFrames = 240;
+
+  // Use React Query to fetch frame count
+  const {
+    isPending,
+    error,
+    data: frameData,
+  } = useQuery({
+    queryKey: ["frameCount", videoId],
+    queryFn: () => {
+      if (!videoId) throw new Error("Video ID is missing");
+      return fetchVideoFrameCount(videoId);
+    },
+    enabled: !!videoId, // Only run the query if videoId exists
+  });
+
+  // Get the total frames from the query result
+  const totalFrames = frameData?.frame_count || 0;
 
   const handleImageClick = async (event: MouseEvent<HTMLImageElement>) => {
     const imgElement = event.currentTarget;
@@ -96,12 +118,23 @@ export default function VideoLabeling() {
       <ContentHeader />
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
-          <VideoDisplay
-            imageUrl="/placeholder.svg?height=720&width=1280" // Consider making this dynamic
-            onImageClick={handleImageClick}
-            currentFrame={currentFrame}
-            totalFrames={totalFrames}
-          />
+          {isPending ? (
+            <div className="flex items-center justify-center h-[720px] bg-muted">
+              <LoadingSpinner />
+              <span className="ml-2">Loading video frames...</span>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-[720px] bg-muted">
+              <ErrorMessage error={(error as Error).message} />
+            </div>
+          ) : (
+            <VideoDisplay
+              imageUrl="/placeholder.svg?height=720&width=1280" // Consider making this dynamic
+              onImageClick={handleImageClick}
+              currentFrame={currentFrame}
+              totalFrames={totalFrames}
+            />
+          )}
         </div>
 
         <div className="w-full lg:w-80 space-y-6">

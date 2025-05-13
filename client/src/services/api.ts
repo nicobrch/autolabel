@@ -30,6 +30,21 @@ export async function fetchProjects(): Promise<ProjectData[]> {
   return response.json();
 }
 
+interface FrameCount {
+  frame_count: number;
+}
+
+export async function fetchVideoFrameCount(
+  videoId: string,
+): Promise<FrameCount> {
+  const response = await fetch(`${apiUrl}/videos/${videoId}/frames/count`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch projects");
+  }
+
+  return response.json();
+}
+
 interface CreateProjectData {
   name: string;
   description: string;
@@ -67,13 +82,13 @@ export interface Video {
   updated_at: string; // ISO date string
 }
 
-export async function fetchVideos(projectId: string): Promise<Video[]> {
-  const response = await fetch(`${apiUrl}/projects/${projectId}/videos`);
+export async function fetchVideos(videoId: string): Promise<Video[]> {
+  const response = await fetch(`${apiUrl}/projects/${videoId}/videos`);
   if (!response.ok) {
     const errorData = await response.text();
     console.error("Fetch videos error:", errorData);
     throw new Error(
-      `HTTP error! status: ${response.status} - Failed to fetch videos for project ${projectId}`,
+      `HTTP error! status: ${response.status} - Failed to fetch videos for project ${videoId}`,
     );
   }
   try {
@@ -85,7 +100,7 @@ export async function fetchVideos(projectId: string): Promise<Video[]> {
 }
 
 export async function uploadVideoFile(
-  projectId: number,
+  videoId: number,
   file: File,
   resolution?: string,
   frameSkip?: number,
@@ -93,7 +108,7 @@ export async function uploadVideoFile(
   const formData = new FormData();
   formData.append("file", file);
 
-  let url = `${apiUrl}/videos/upload?project_id=${projectId}`;
+  let url = `${apiUrl}/videos/upload?project_id=${videoId}`;
   if (resolution) {
     url += `&resolution=${encodeURIComponent(resolution)}`;
   }
