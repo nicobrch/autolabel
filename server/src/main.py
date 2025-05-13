@@ -3,11 +3,12 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from db import get_db, create_tables
 from models import Project, Video, Frame, Object, Mask, Point
-from utils import extract_video_metadata, extract_frames_at_frame_step, sqlalchemy_to_dict
+from utils import logger, extract_video_metadata, extract_frames_at_frame_step, sqlalchemy_to_dict
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uvicorn
+import subprocess
 
 app = FastAPI(
     title="AutoLabel API",
@@ -135,7 +136,20 @@ async def list_videos(
         query = query.filter(Video.project_id == project_id)
 
     videos = query.offset(skip).limit(limit).all()
-    return [sqlalchemy_to_dict(video) for video in videos]
+    result = []
+
+    for video in videos:
+        video_dict = sqlalchemy_to_dict(video)
+        # Get the first frame for this video
+        first_frame = db.query(Frame).filter(
+            Frame.video_id == video.id).order_by(Frame.frame_number).first()
+        if first_frame:
+            video_dict["first_frame_path"] = first_frame.file_path
+        else:
+            video_dict["first_frame_path"] = None
+        result.append(video_dict)
+
+    return result
 
 
 @app.get("/api/v1/videos/{video_id}", response_model=dict)
@@ -143,7 +157,18 @@ async def get_video(video_id: int, db: Session = Depends(get_db)):
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
-    return sqlalchemy_to_dict(video)
+
+    video_dict = sqlalchemy_to_dict(video)
+
+    # Get the first frame for this video
+    first_frame = db.query(Frame).filter(
+        Frame.video_id == video_id).order_by(Frame.frame_number).first()
+    if first_frame:
+        video_dict["first_frame_path"] = first_frame.file_path
+    else:
+        video_dict["first_frame_path"] = None
+
+    return video_dict
 
 
 @app.post("/api/v1/videos/upload", response_model=dict)
@@ -152,7 +177,7 @@ async def upload_video(
     project_id: int = Query(...,
                             description="Project ID to associate with this video"),
     resolution: Optional[str] = Query(
-        None, description="Resolution of the video, e.g., '1280x720'"),  # Changed : to x
+        None, description="Resolution to resize the video, e.g., '1280x720'"),
     frame_skip: Optional[int] = Query(
         10, description="Frame skip value for video processing"),
     db: Session = Depends(get_db)
@@ -169,16 +194,60 @@ async def upload_video(
     videos_dir = Path("videos")
     videos_dir.mkdir(exist_ok=True)
 
-    # Save the file
-    file_path = videos_dir / file.filename
+    # Save the original file temporarily
+    temp_file_path = videos_dir / f"temp_{file.filename}"
     try:
-        with open(file_path, "wb") as buffer:
+        with open(temp_file_path, "wb") as buffer:
             contents = await file.read()
             buffer.write(contents)
     except IOError as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to save video file: {e}")
 
+    # Define the final file path
+    file_path = videos_dir / file.filename
+
+    # Resize video if resolution is provided and not "Original"
+    if resolution and resolution.lower() != "original":
+        import re
+        if not re.match(r'^\d+x\d+$', resolution):
+            # Clean up temp file
+            if temp_file_path.exists():
+                temp_file_path.unlink()
+            raise HTTPException(
+                status_code=400, detail=f"Invalid resolution format: {resolution}. Must be 'WIDTHxHEIGHT'")
+
+        try:
+            # Use ffmpeg to resize the video
+            cmd = [
+                "ffmpeg",
+                "-i", str(temp_file_path),
+                "-vf", f"scale={resolution}",
+                "-c:v", "libx264",
+                "-preset", "medium",
+                "-crf", "23",
+                "-c:a", "copy",
+                str(file_path)
+            ]
+
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
+
+            # Delete temporary file after successful resize
+            if temp_file_path.exists():
+                temp_file_path.unlink()
+
+        except subprocess.SubprocessError as e:
+            # Clean up temp file if resize fails
+            if temp_file_path.exists():
+                temp_file_path.unlink()
+            raise HTTPException(
+                status_code=500, detail=f"Failed to resize video: {e}")
+    else:
+        # Just rename the temp file to the final file name if no resize needed
+        temp_file_path.rename(file_path)
+
+    # Extract metadata from the final video file
     metadata = extract_video_metadata(file_path)
     if not metadata:
         # Clean up the saved file if metadata extraction fails
@@ -212,7 +281,7 @@ async def upload_video(
         # Automatically extract frames after successful video upload
         if new_video.id:
             frames_dir = extract_frames_at_frame_step(
-                str(file_path), frame_skip, resolution, db)
+                str(file_path), frame_skip, db)
             if frames_dir:
                 # Count extracted frames
                 frame_count = db.query(Frame).filter(
@@ -239,14 +308,46 @@ async def delete_video(video_id: int, db: Session = Depends(get_db)):
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    # Delete the physical file
+    # Get all frames associated with this video
+    frames = db.query(Frame).filter(Frame.video_id == video_id).all()
+
+    # Delete all physical frame files
+    for frame in frames:
+        try:
+            frame_path = Path(frame.file_path)
+            if frame_path.exists():
+                frame_path.unlink()
+        except Exception as e:
+            # Log the error but continue with deletion
+            logger.error(f"Error deleting frame file {frame.file_path}: {e}")
+
+    # Delete the frames directory if it exists
+    if frames and len(frames) > 0:
+        try:
+            # Get the parent directory of the frames (should be something like "data/frames/video_name/original")
+            frame_dir = Path(frames[0].file_path).parent
+
+            # Check if directory is empty after deleting files
+            if frame_dir.exists() and not any(frame_dir.iterdir()):
+                frame_dir.rmdir()
+
+                # Try to remove parent directory too if empty (video_name directory)
+                video_dir = frame_dir.parent
+                if video_dir.exists() and not any(video_dir.iterdir()):
+                    video_dir.rmdir()
+        except Exception as e:
+            # Log the error but continue with deletion
+            logger.error(f"Error deleting frame directory: {e}")
+
+    # Delete the physical video file
     try:
         if Path(video.file_path).exists():
             Path(video.file_path).unlink()
-    except Exception:
+    except Exception as e:
         # Log the error but continue with DB deletion
-        pass
+        logger.error(f"Error deleting video file {video.file_path}: {e}")
 
+    # Delete the video record (this will cascade delete all associated frames due to FK constraints)
     db.delete(video)
     db.commit()
     return None
@@ -281,8 +382,6 @@ async def get_frame(frame_id: int, db: Session = Depends(get_db)):
 async def extract_frames(
     video_id: int,
     frame_step: int = Query(10, description="Extract every Nth frame"),
-    resolution: Optional[str] = Query(
-        None, description="Resolution to resize frames (format: 'WIDTHxHEIGHT')"),
     db: Session = Depends(get_db)
 ):
     video = db.query(Video).filter(Video.id == video_id).first()
@@ -290,7 +389,7 @@ async def extract_frames(
         raise HTTPException(status_code=404, detail="Video not found")
 
     frames_dir = extract_frames_at_frame_step(
-        video.file_path, frame_step, resolution, db)
+        video.file_path, frame_step, db)
     if not frames_dir:
         raise HTTPException(status_code=500, detail="Failed to extract frames")
 
@@ -315,7 +414,7 @@ async def delete_frame(frame_id: int, db: Session = Depends(get_db)):
     try:
         if Path(frame.file_path).exists():
             Path(frame.file_path).unlink()
-    except Exception as e:
+    except Exception:
         # Log the error but continue with DB deletion
         pass
 
