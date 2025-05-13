@@ -23,6 +23,7 @@ interface VideoCardProps {
   resolution: string;
   dateCreated: string;
   videoPath: string;
+  firstFramePath?: string; // Add this new prop for the first frame
 }
 
 export function VideoCard({
@@ -33,6 +34,7 @@ export function VideoCard({
   resolution,
   dateCreated,
   videoPath,
+  firstFramePath,
 }: VideoCardProps) {
   const { projectId } = useParams<{ projectId: string }>();
 
@@ -43,7 +45,8 @@ export function VideoCard({
           src={videoPath || "/placeholder.svg"}
           width={1280}
           height={720}
-          poster="/placeholder.svg"
+          // Use the first frame as the poster if available, otherwise fall back to placeholder
+          poster={firstFramePath || "/placeholder.svg"}
           className="aspect-video w-full object-cover"
           controls
           muted

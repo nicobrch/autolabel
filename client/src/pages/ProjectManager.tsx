@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { fetchVideos } from "@/services/api";
+import { fetchVideos, getFirstFrameUrl, getVideoUrl } from "@/services/api";
 import { VideoCard } from "@/components/videos/VideoCard";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { useParams } from "react-router";
@@ -63,7 +63,8 @@ export default function ProjectManager() {
               size={video.file_size}
               resolution={`${video.width}x${video.height}`}
               dateCreated={video.created_at}
-              videoPath={`http://localhost:8000/videos/${video.file_name}`}
+              videoPath={getVideoUrl(video.file_name)}
+              firstFramePath={getFirstFrameUrl(video.file_name)}
             />
           ))
         ) : (

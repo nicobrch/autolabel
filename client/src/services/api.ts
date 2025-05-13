@@ -1,4 +1,18 @@
+import { getFileNameWithoutExtension } from "@/lib/utils";
+
 const apiUrl = "http://localhost:8000/api/v1";
+const videoUrl = "http://localhost:8000/videos";
+const dataUrl = "http://localhost:8000/data";
+
+export function getVideoUrl(fileName: string): string {
+  return `${videoUrl}/${fileName}`;
+}
+
+export function getFirstFrameUrl(fileName: string): string {
+  return `${dataUrl}/frames/${getFileNameWithoutExtension(
+    fileName,
+  )}/original/0001.jpg`;
+}
 
 interface ProjectData {
   id: number;
