@@ -150,18 +150,26 @@ def get_frames_list(frames_dir: Union[str, Path]) -> List[Path]:
     return frames
 
 
-def extract_frames_at_frame_step(video_path: str, frame_step: int, db: Session = next(get_db())) -> Optional[Path]:
+def extract_frames_at_frame_step(
+    video_path: str,
+    frame_step: int,
+    resolution: Optional[str] = None,
+    db: Session = next(get_db())
+) -> Optional[Path]:
     """
     Extract frames from a video at a specified frame step using ffmpeg.
 
     Args:
         video_path: Path to the video file
         frame_step: Step size for frame extraction
+        resolution: Optional resolution to resize frames (format: "WIDTHxHEIGHT")
         db: Database session
 
     Returns:
         Path to the directory containing extracted frames
     """
+    import re  # For regex pattern matching
+
     # Check if the video file exists
     if not os.path.exists(video_path):
         logger.error(f"Video file '{video_path}' not found")
@@ -172,6 +180,14 @@ def extract_frames_at_frame_step(video_path: str, frame_step: int, db: Session =
     if not video:
         logger.error(f"Video '{video_path}' not found in database")
         raise ValueError(f"Video '{video_path}' not found in database.")
+
+    # Validate resolution format if provided
+    if resolution:
+        if not re.match(r'^\d+x\d+$', resolution):
+            logger.error(
+                f"Invalid resolution format: {resolution}. Must be 'WIDTHxHEIGHT'")
+            raise ValueError(
+                f"Invalid resolution format: {resolution}. Must be 'WIDTHxHEIGHT'")
 
     # Create base frames directory if it doesn't exist
     base_frames_dir = Path("data/frames")
@@ -193,14 +209,22 @@ def extract_frames_at_frame_step(video_path: str, frame_step: int, db: Session =
     db.refresh(video)
 
     try:
-        logger.info(
-            f"Extracting frames from '{video_path}' with step {frame_step}")
+        # Log extraction info
+        extraction_msg = f"Extracting frames from '{video_path}' with step {frame_step}"
+        if resolution:
+            extraction_msg += f", resizing to {resolution}"
+        logger.info(extraction_msg)
+
         # Prepare ffmpeg command to extract frames
+        vf_option = f"select='not(mod(n,{frame_step}))'"
+        if resolution:
+            vf_option += f",scale={resolution}"
+
         cmd = [
             "ffmpeg",
             "-i", video_path,
             "-vsync", "vfr",
-            "-vf", f"select='not(mod(n,{frame_step}))'",
+            "-vf", vf_option,
             str(frames_dir / "%04d.jpg"),
         ]
 
@@ -225,8 +249,13 @@ def extract_frames_at_frame_step(video_path: str, frame_step: int, db: Session =
             db.add(new_frame)
 
         db.commit()
-        logger.info(
-            f"Extracted {len(frames)} frames from '{video_path}' to '{frames_dir}'")
+
+        # Log completion info
+        completion_msg = f"Extracted {len(frames)} frames from '{video_path}' to '{frames_dir}'"
+        if resolution:
+            completion_msg += f" with resolution {resolution}"
+        logger.info(completion_msg)
+
         return frames_dir
 
     except (subprocess.SubprocessError, ValueError, KeyError) as e:
