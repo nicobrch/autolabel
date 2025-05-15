@@ -9,6 +9,8 @@ import {
   fetchVideoFrameCount,
   fetchVideoById,
   getFirstInferenceFrameUrl,
+  fetchVideoObjects,
+  VideoObject,
 } from "@/services/api";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import LoadingSpinner from "@/components/ui/loading-spinner";
@@ -17,7 +19,7 @@ export default function VideoLabeling() {
   const { videoId } = useParams<{ videoId: string }>();
 
   const [modelCheckpoint, setModelCheckpoint] = useState("SAM2-T");
-  const [selectedObject, setSelectedObject] = useState("Person");
+  const [selectedObject, setSelectedObject] = useState<string>("");
   const [pointType, setPointType] = useState("positive");
   const currentFrame = 1;
 
@@ -49,6 +51,20 @@ export default function VideoLabeling() {
     enabled: !!videoId,
   });
 
+  // Use React Query to fetch video objects
+  const {
+    isPending: isObjectsPending,
+    error: objectsError,
+    data: objectsData,
+  } = useQuery({
+    queryKey: ["videoObjects", videoId],
+    queryFn: () => {
+      if (!videoId) throw new Error("Video ID is missing");
+      return fetchVideoObjects(videoId);
+    },
+    enabled: !!videoId,
+  });
+
   // Get the total frames from the query result
   const totalFrames = frameData?.frame_count || 0;
 
@@ -57,8 +73,8 @@ export default function VideoLabeling() {
     ? getFirstInferenceFrameUrl(videoData.file_name)
     : "/placeholder.svg?height=720&width=1280";
 
-  const isPending = isVideoPending || isFrameCountPending;
-  const error = videoError || frameCountError;
+  const isPending = isVideoPending || isFrameCountPending || isObjectsPending;
+  const error = videoError || frameCountError || objectsError;
 
   const handleImageClick = async (event: MouseEvent<HTMLImageElement>) => {
     const imgElement = event.currentTarget;
@@ -89,7 +105,7 @@ export default function VideoLabeling() {
 
     // Determine label based on pointType state
     const label = pointType === "positive" ? 1 : 0;
-    const object_id = 0; // Using object_id = 0 for now
+    const object_id = selectedObject ? parseInt(selectedObject, 10) : 0;
 
     try {
       const response = await fetch(`/api/v1/objects/${object_id}/points`, {
@@ -175,6 +191,8 @@ export default function VideoLabeling() {
             pointType={pointType}
             onPointTypeChange={setPointType}
             onCreateObject={handleCreateObject}
+            videoObjects={objectsData || []}
+            isLoading={isObjectsPending}
           />
         </div>
       </div>

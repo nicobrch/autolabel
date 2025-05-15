@@ -11,13 +11,16 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TypographyH4 } from "@/components/typography/typography";
 import { Plus, Undo2, Eraser } from "lucide-react";
+import { VideoObject } from "@/services/api";
 
 interface LabelingOptionsProps {
   selectedObject: string;
   onSelectedObjectChange: (value: string) => void;
   pointType: string;
   onPointTypeChange: (value: string) => void;
-  onCreateObject: () => void; // Assuming a function prop for the button click
+  onCreateObject: () => void;
+  videoObjects: VideoObject[];
+  isLoading?: boolean;
 }
 
 export function LabelingOptions({
@@ -26,6 +29,8 @@ export function LabelingOptions({
   pointType,
   onPointTypeChange,
   onCreateObject,
+  videoObjects,
+  isLoading = false,
 }: LabelingOptionsProps) {
   return (
     <Card>
@@ -45,16 +50,32 @@ export function LabelingOptions({
 
         <div className="space-y-2">
           <Label htmlFor="object-type">Current Selected Object</Label>
-          <Select value={selectedObject} onValueChange={onSelectedObjectChange}>
+          <Select
+            value={selectedObject}
+            onValueChange={onSelectedObjectChange}
+            disabled={isLoading || videoObjects.length === 0}
+          >
             <SelectTrigger id="object-type" className="w-full">
-              <SelectValue placeholder="Select object" />
+              <SelectValue
+                placeholder={isLoading ? "Loading..." : "Select object"}
+              />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Person">Person</SelectItem>
-              <SelectItem value="Vehicle">Vehicle</SelectItem>
-              <SelectItem value="Animal">Animal</SelectItem>
-              <SelectItem value="Building">Building</SelectItem>
-              <SelectItem value="Custom">Custom</SelectItem>
+              {videoObjects.length === 0 ? (
+                <SelectItem value="no-objects" disabled>
+                  No objects available
+                </SelectItem>
+              ) : (
+                videoObjects.map((obj) => (
+                  <SelectItem
+                    key={obj.id}
+                    value={obj.id.toString()}
+                    style={{ color: obj.color }}
+                  >
+                    {obj.name}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
