@@ -10,7 +10,6 @@ import {
   fetchVideoById,
   getFirstInferenceFrameUrl,
   fetchVideoObjects,
-  VideoObject,
 } from "@/services/api";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import LoadingSpinner from "@/components/ui/loading-spinner";
@@ -143,12 +142,6 @@ export default function VideoLabeling() {
     }
   };
 
-  // Placeholder handlers for new component props
-  const handleCreateObject = () => {
-    console.log("Create new object clicked");
-    // Add logic to create a new object
-  };
-
   const handleLabelVideo = () => {
     console.log("Label video clicked");
     // Add logic to start video labeling/propagation
@@ -190,9 +183,9 @@ export default function VideoLabeling() {
             onSelectedObjectChange={setSelectedObject}
             pointType={pointType}
             onPointTypeChange={setPointType}
-            onCreateObject={handleCreateObject}
             videoObjects={objectsData || []}
             isLoading={isObjectsPending}
+            videoId={videoId || ""}
           />
         </div>
       </div>

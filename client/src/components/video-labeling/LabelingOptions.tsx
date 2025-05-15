@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -12,15 +13,18 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TypographyH4 } from "@/components/typography/typography";
 import { Plus, Undo2, Eraser } from "lucide-react";
 import { VideoObject } from "@/services/api";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { CreateObjectForm } from "@/components/video-labeling/CreateObjectForm";
 
 interface LabelingOptionsProps {
   selectedObject: string;
   onSelectedObjectChange: (value: string) => void;
   pointType: string;
   onPointTypeChange: (value: string) => void;
-  onCreateObject: () => void;
+  onCreateObject?: () => void; // Make optional since we'll handle it internally
   videoObjects: VideoObject[];
   isLoading?: boolean;
+  videoId: string; // Add videoId prop to pass to CreateObjectForm
 }
 
 export function LabelingOptions({
@@ -28,10 +32,12 @@ export function LabelingOptions({
   onSelectedObjectChange,
   pointType,
   onPointTypeChange,
-  onCreateObject,
   videoObjects,
   isLoading = false,
+  videoId,
 }: LabelingOptionsProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   return (
     <Card>
       <CardHeader>
@@ -42,10 +48,15 @@ export function LabelingOptions({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="object-type">Create Object</Label>
-          <Button className="w-full" onClick={onCreateObject}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create New Object
-          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Create New Object
+              </Button>
+            </DialogTrigger>
+            <CreateObjectForm videoId={videoId} setIsOpen={setIsDialogOpen} />
+          </Dialog>
         </div>
 
         <div className="space-y-2">
