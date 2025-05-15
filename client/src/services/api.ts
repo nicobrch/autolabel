@@ -197,3 +197,34 @@ export async function fetchVideoObjects(
     throw new Error("Received invalid data format from server.");
   }
 }
+
+export async function createVideoObject(
+  videoId: string,
+  data: { name: string; color?: string },
+): Promise<VideoObject> {
+  const response = await fetch(`${apiUrl}/videos/${videoId}/objects`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    let errorDetail = "Failed to create object";
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.detail) {
+        errorDetail = errorData.detail;
+      }
+    } catch (e) {
+      const textError = await response.text().catch(() => "");
+      if (textError) {
+        errorDetail = textError;
+      }
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
