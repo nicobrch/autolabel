@@ -2,7 +2,6 @@ import { useState, MouseEvent } from "react";
 import { VideoDisplay } from "@/components/video-labeling/VideoDisplay";
 import { InferenceSettings } from "@/components/video-labeling/InferenceSettings";
 import { LabelingOptions } from "@/components/video-labeling/LabelingOptions";
-import { ActionButtons } from "@/components/video-labeling/ActionButtons";
 import { ContentHeader } from "@/components/layout/ContentHeader";
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -167,6 +166,7 @@ export default function VideoLabeling() {
           <InferenceSettings
             modelCheckpoint={modelCheckpoint}
             onModelCheckpointChange={setModelCheckpoint}
+            onLabelVideo={handleLabelVideo}
           />
 
           <LabelingOptions
@@ -176,8 +176,6 @@ export default function VideoLabeling() {
             onPointTypeChange={setPointType}
             onCreateObject={handleCreateObject}
           />
-
-          <ActionButtons onLabelVideo={handleLabelVideo} />
         </div>
       </div>
     </div>

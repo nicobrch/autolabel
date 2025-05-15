@@ -8,15 +8,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyH4 } from "@/components/typography/typography";
+import { Button } from "@/components/ui/button";
+import { Brain } from "lucide-react";
 
 interface InferenceSettingsProps {
   modelCheckpoint: string;
   onModelCheckpointChange: (value: string) => void;
+  onLabelVideo: () => void;
 }
 
 export function InferenceSettings({
   modelCheckpoint,
   onModelCheckpointChange,
+  onLabelVideo,
 }: InferenceSettingsProps) {
   return (
     <Card>
@@ -43,6 +47,10 @@ export function InferenceSettings({
             </SelectContent>
           </Select>
         </div>
+        <Button className="w-full" onClick={onLabelVideo}>
+          <Brain className="h-4 w-4 mr-2" />
+          Label Video
+        </Button>
       </CardContent>
     </Card>
   );

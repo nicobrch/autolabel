@@ -61,7 +61,11 @@ export function LabelingOptions({
 
         <div className="space-y-4">
           <Label>Point Type</Label>
-          <RadioGroup value={pointType} onValueChange={onPointTypeChange}>
+          <RadioGroup
+            value={pointType}
+            onValueChange={onPointTypeChange}
+            className="flex space-x-4"
+          >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="positive" id="positive" />
               <Label htmlFor="positive">Positive</Label>
