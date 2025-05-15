@@ -287,5 +287,53 @@ async def create_object(
 
     return sqlalchemy_to_dict(new_object)
 
+
+# Get all objects for a given video
+@app.get("/api/v1/videos/{video_id}/objects", response_model=List[dict])
+async def list_objects(video_id: int, db: Session = Depends(get_db)):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Get all objects for this video
+    objects = db.query(Object).filter(Object.video_id == video_id).all()
+    return [sqlalchemy_to_dict(obj) for obj in objects]
+
+
+# Update an object
+@app.put("/api/v1/videos/{video_id}/objects/{object_id}", response_model=dict)
+async def update_object(
+    video_id: int,
+    object_id: int,
+    name: str = Body(...),
+    color: Optional[str] = Body(None),
+    db: Session = Depends(get_db)
+):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Check if object exists
+    obj = db.query(Object).filter(Object.id == object_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Object not found")
+
+    # Check if object belongs to this video
+    if obj.video_id != video_id:
+        raise HTTPException(
+            status_code=400, detail="Object does not belong to this video")
+
+    # Update object name and color
+    obj.name = name
+    if color:
+        obj.color = color
+
+    db.commit()
+    db.refresh(obj)
+
+    return sqlalchemy_to_dict(obj)
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
