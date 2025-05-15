@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 import cv2
 import logging
+import shutil
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 from sqlalchemy.orm import Session
@@ -192,6 +193,10 @@ def extract_frames_at_frame_step(
         "original"  # e.g. "data/frames/video_name/original"
     frames_dir.mkdir(parents=True, exist_ok=True)
 
+    inference_frames_dir = base_frames_dir / video_name / \
+        "inference"  # e.g. "data/frames/video_name/inference"
+    inference_frames_dir.mkdir(parents=True, exist_ok=True)
+
     # Remove existing frames in the directory
     for file in frames_dir.glob("*.jpg"):
         file.unlink()
@@ -242,6 +247,15 @@ def extract_frames_at_frame_step(
             db.commit()
             logger.info(
                 f"Added first frame ({first_frame.name}) to database for video ID {video.id}")
+
+        # Copy the first frame to the inference directory using shutil
+        if frames:
+            first_frame_inference = frames[0]
+            inference_frame_path = inference_frames_dir / \
+                first_frame_inference.name
+            shutil.copy(str(first_frame_inference), str(inference_frame_path))
+            logger.info(
+                f"Copied first frame to inference directory: {inference_frame_path}")
 
         # Log completion info
         completion_msg = f"Extracted {len(frames)} frames from '{video_path_str}' to '{frames_dir}' (only first frame stored in DB)"
