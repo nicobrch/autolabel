@@ -61,34 +61,48 @@ export function LabelingOptions({
 
         <div className="space-y-2">
           <Label htmlFor="object-type">Current Selected Object</Label>
-          <Select
-            value={selectedObject}
-            onValueChange={onSelectedObjectChange}
-            disabled={isLoading || videoObjects.length === 0}
-          >
-            <SelectTrigger id="object-type" className="w-full">
-              <SelectValue
-                placeholder={isLoading ? "Loading..." : "Select object"}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {videoObjects.length === 0 ? (
-                <SelectItem value="no-objects" disabled>
-                  No objects available
-                </SelectItem>
-              ) : (
-                videoObjects.map((obj) => (
-                  <SelectItem
-                    key={obj.id}
-                    value={obj.id.toString()}
-                    style={{ color: obj.color }}
-                  >
-                    {obj.name}
+          <div className="flex items-center space-x-2">
+            <Select
+              value={selectedObject}
+              onValueChange={onSelectedObjectChange}
+              disabled={isLoading || videoObjects.length === 0}
+            >
+              <SelectTrigger id="object-type" className="w-full">
+                <SelectValue
+                  placeholder={isLoading ? "Loading..." : "Select object"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {videoObjects.length === 0 ? (
+                  <SelectItem value="no-objects" disabled>
+                    No objects available
                   </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+                ) : (
+                  videoObjects.map((obj) => (
+                    <SelectItem
+                      key={obj.id}
+                      value={obj.id.toString()}
+                      style={{ color: obj.color }}
+                    >
+                      {obj.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+
+            {/* Color square - always displayed */}
+            <div
+              className="w-8 h-8 rounded-sm border flex-shrink-0"
+              style={{
+                backgroundColor: selectedObject
+                  ? videoObjects.find(
+                      (obj) => obj.id.toString() === selectedObject,
+                    )?.color || "transparent"
+                  : "transparent",
+              }}
+            />
+          </div>
         </div>
 
         <div className="space-y-4">
