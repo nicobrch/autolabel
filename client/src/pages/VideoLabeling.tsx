@@ -1,4 +1,4 @@
-import { useState, MouseEvent, useEffect } from "react";
+import { useState, MouseEvent } from "react";
 import { VideoDisplay } from "@/components/video-labeling/VideoDisplay";
 import { InferenceSettings } from "@/components/video-labeling/InferenceSettings";
 import { LabelingOptions } from "@/components/video-labeling/LabelingOptions";
@@ -6,7 +6,11 @@ import { ActionButtons } from "@/components/video-labeling/ActionButtons";
 import { ContentHeader } from "@/components/layout/ContentHeader";
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { fetchVideoFrameCount } from "@/services/api";
+import {
+  fetchVideoFrameCount,
+  fetchVideoById,
+  getFirstInferenceFrameUrl,
+} from "@/services/api";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
@@ -18,10 +22,24 @@ export default function VideoLabeling() {
   const [pointType, setPointType] = useState("positive");
   const currentFrame = 1;
 
+  // Use React Query to fetch video data
+  const {
+    isPending: isVideoPending,
+    error: videoError,
+    data: videoData,
+  } = useQuery({
+    queryKey: ["video", videoId],
+    queryFn: () => {
+      if (!videoId) throw new Error("Video ID is missing");
+      return fetchVideoById(videoId);
+    },
+    enabled: !!videoId,
+  });
+
   // Use React Query to fetch frame count
   const {
-    isPending,
-    error,
+    isPending: isFrameCountPending,
+    error: frameCountError,
     data: frameData,
   } = useQuery({
     queryKey: ["frameCount", videoId],
@@ -29,23 +47,31 @@ export default function VideoLabeling() {
       if (!videoId) throw new Error("Video ID is missing");
       return fetchVideoFrameCount(videoId);
     },
-    enabled: !!videoId, // Only run the query if videoId exists
+    enabled: !!videoId,
   });
 
   // Get the total frames from the query result
   const totalFrames = frameData?.frame_count || 0;
 
+  // Get first frame URL if video data is available
+  const firstFrameUrl = videoData
+    ? getFirstInferenceFrameUrl(videoData.file_name)
+    : "/placeholder.svg?height=720&width=1280";
+
+  const isPending = isVideoPending || isFrameCountPending;
+  const error = videoError || frameCountError;
+
   const handleImageClick = async (event: MouseEvent<HTMLImageElement>) => {
     const imgElement = event.currentTarget;
     const rect = imgElement.getBoundingClientRect();
 
+    // Define the original/natural dimensions
+    const naturalWidth = videoData?.width || 1280;
+    const naturalHeight = videoData?.height || 720;
+
     // Get the displayed dimensions
     const displayWidth = rect.width;
     const displayHeight = rect.height;
-
-    // Define the original/natural dimensions
-    const naturalWidth = 1280;
-    const naturalHeight = 720;
 
     // Calculate scaling factors
     const scaleX = naturalWidth / displayWidth;
@@ -129,7 +155,7 @@ export default function VideoLabeling() {
             </div>
           ) : (
             <VideoDisplay
-              imageUrl="/placeholder.svg?height=720&width=1280" // Consider making this dynamic
+              imageUrl={firstFrameUrl}
               onImageClick={handleImageClick}
               currentFrame={currentFrame}
               totalFrames={totalFrames}

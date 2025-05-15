@@ -24,7 +24,7 @@ export function VideoDisplay({
         className="w-full h-full rounded-md object-cover shadow-sm border-1 cursor-crosshair"
         onClick={onImageClick}
       />
-      <div className="absolute bottom-4 left-4 bg-accent px-3 py-1 rounded-md text-sm">
+      <div className="absolute bottom-4 left-4 bg-accent px-3 py-1 rounded-md text-sm opacity-100 hover:opacity-0 transition-opacity duration-300">
         Frame: {currentFrame}/{totalFrames}
       </div>
     </AspectRatio>
