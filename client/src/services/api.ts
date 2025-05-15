@@ -14,6 +14,12 @@ export function getFirstFrameUrl(fileName: string): string {
   )}/original/0001.jpg`;
 }
 
+export function getFirstInferenceFrameUrl(fileName: string): string {
+  return `${dataUrl}/frames/${getFileNameWithoutExtension(
+    fileName,
+  )}/inference/0001.jpg`;
+}
+
 interface ProjectData {
   id: number;
   name: string;
@@ -95,6 +101,23 @@ export async function fetchVideos(videoId: string): Promise<Video[]> {
     return await response.json();
   } catch (e) {
     console.error("Failed to parse videos JSON:", e);
+    throw new Error("Received invalid data format from server.");
+  }
+}
+
+export async function fetchVideoById(videoId: string): Promise<Video> {
+  const response = await fetch(`${apiUrl}/videos/${videoId}`);
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error("Fetch video error:", errorData);
+    throw new Error(
+      `HTTP error! status: ${response.status} - Failed to fetch video ${videoId}`,
+    );
+  }
+  try {
+    return await response.json();
+  } catch (e) {
+    console.error("Failed to parse video JSON:", e);
     throw new Error("Received invalid data format from server.");
   }
 }
