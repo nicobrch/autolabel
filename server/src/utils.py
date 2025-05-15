@@ -525,3 +525,37 @@ def sqlalchemy_to_dict(obj: Any) -> dict:
             result[column.name] = value
 
     return result
+
+
+# Function to create a random color string in hex format using numpy
+def random_color() -> str:
+    """
+    Generate a random color in hex format.
+
+    Returns:
+        Random color in hex format (e.g., "#RRGGBB")
+    """
+    r = np.random.randint(0, 255)
+    g = np.random.randint(0, 255)
+    b = np.random.randint(0, 255)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+# Function to obtain r,g,b values from hex color string
+def hex_to_rgb(hex_color: str) -> tuple:
+    """
+    Convert a hex color string to an RGB tuple.
+
+    Args:
+        hex_color: Hex color string (e.g., "#RRGGBB")
+
+    Returns:
+        Tuple of (R, G, B) values
+    """
+    if hex_color.startswith('#') and len(hex_color) == 7:
+        r = int(hex_color[1:3], 16)
+        g = int(hex_color[3:5], 16)
+        b = int(hex_color[5:7], 16)
+        return r, g, b
+    else:
+        raise ValueError("Invalid hex color format")

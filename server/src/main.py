@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from db import get_db, init_db
-from models import Project, Video
-from utils import logger, extract_video_metadata, extract_frames_at_frame_step, sqlalchemy_to_dict
+from models import Project, Video, Object
+from utils import logger, extract_video_metadata, extract_frames_at_frame_step, sqlalchemy_to_dict, random_color
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
@@ -248,6 +248,44 @@ async def get_frame_count(video_id: int, db: Session = Depends(get_db)):
 
     frame_count = len(list(frames_dir.glob("*.jpg")))
     return {"frame_count": frame_count}
+
+
+# Create a new object for a given video
+@app.post("/api/v1/videos/{video_id}/objects", response_model=dict)
+async def create_object(
+    video_id: int,
+    name: str = Body(...),
+    color: Optional[str] = Body(None),
+    db: Session = Depends(get_db)
+):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Check if object with same name already exists for this video
+    existing_object = db.query(Object).filter(
+        Object.video_id == video_id, Object.name == name).first()
+
+    if existing_object:
+        raise HTTPException(
+            status_code=400, detail="Object with this name already exists for this video")
+
+    # If no color provided, generate a random one
+    if not color:
+        color = random_color()
+    # Validate color format if provided
+    elif not color.startswith('#') or len(color) != 7 or not all(c in '0123456789ABCDEFabcdef' for c in color[1:]):
+        raise HTTPException(
+            status_code=400, detail="Color must be in hex format #RRGGBB")
+
+    # Create new object with color
+    new_object = Object(name=name, video_id=video_id, color=color)
+    db.add(new_object)
+    db.commit()
+    db.refresh(new_object)
+
+    return sqlalchemy_to_dict(new_object)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
