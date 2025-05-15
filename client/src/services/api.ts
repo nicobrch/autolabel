@@ -167,3 +167,33 @@ export async function uploadVideoFile(
 
   return response.json();
 }
+
+export interface VideoObject {
+  id: number;
+  name: string;
+  video_id: number;
+  color: string;
+  created_at?: string; // ISO date string
+  updated_at?: string; // ISO date string
+}
+
+export async function fetchVideoObjects(
+  videoId: string,
+): Promise<VideoObject[]> {
+  const response = await fetch(`${apiUrl}/videos/${videoId}/objects`);
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error("Fetch video objects error:", errorData);
+    throw new Error(
+      `HTTP error! status: ${response.status} - Failed to fetch objects for video ${videoId}`,
+    );
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    console.error("Failed to parse video objects JSON:", e);
+    throw new Error("Received invalid data format from server.");
+  }
+}
