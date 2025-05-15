@@ -98,6 +98,15 @@ async def list_project_videos(project_id: int, db: Session = Depends(get_db)):
     return [sqlalchemy_to_dict(video) for video in videos]
 
 
+# Get video by ID
+@app.get("/api/v1/videos/{video_id}", response_model=dict)
+async def get_video(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    return sqlalchemy_to_dict(video)
+
+
 @app.post("/api/v1/videos/upload", response_model=dict)
 async def upload_video(
     file: UploadFile = File(...),
