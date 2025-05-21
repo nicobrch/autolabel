@@ -9,6 +9,7 @@ import shutil
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import exists
 from db import get_db
 from models import Object, Point, Frame, Mask, Video
 
@@ -370,106 +371,91 @@ def remove_point(point_id: int, db: Session = next(get_db())) -> None:
 
 
 def draw_objects_masks_on_frame(
-    frame_path: str,
-    object_ids: List[int],
-    output_dir: str,
+    video_id: int,
     db: Session = next(get_db())
 ) -> str:
     """
-    Draw object masks onto a frame and save as new image.
+    Draw all object masks for the given video frame.
 
     Args:
-        frame_path: Path to the frame image
-        object_ids: List of object IDs to draw masks for
-        output_dir: Directory path to save the output image
+        video_id: ID of the video
         db: Database session
 
     Returns:
-        Path to the saved masked image
+        Path to the inference image with masks
     """
-    # Check if the output directory exists, if not create it
-    output_dir_path = Path(output_dir)
-    output_dir_path.mkdir(parents=True, exist_ok=True)
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise ValueError(f"Video with ID {video_id} not found")
 
-    # Read the frame
-    frame = cv2.imread(str(frame_path))
-    if frame is None:
-        logger.error(f"Could not read frame from {frame_path}")
-        raise FileNotFoundError(f"Could not read frame from {frame_path}")
+    # Get all objects for this video that have masks
+    # Fix: Use SQLAlchemy's exists() function properly
+    objects_with_masks = db.query(Object).filter(
+        Object.video_id == video_id,
+        exists().where(Mask.object_id == Object.id)  # Correct way to use exists()
+    ).all()
+
+    if not objects_with_masks:
+        raise ValueError(
+            f"No objects with masks found for video ID {video_id}")
+
+    # Get the frame for this video
+    frame = db.query(Frame).filter(Frame.video_id == video_id).first()
+    if not frame:
+        raise ValueError(f"No frame found for video ID {video_id}")
+
+    # Construct paths
+    frame_path = Path(frame.file_path)
+    frames_dir = frame_path.parent  # Original frames directory
+    # Parent dir with both original and inference
+    video_frames_dir = frames_dir.parent
+    inference_dir = video_frames_dir / "inference"
+    inference_dir.mkdir(exist_ok=True)
+
+    # Load the first frame
+    frame_img = cv2.imread(str(frame_path))
+    if frame_img is None:
+        raise ValueError(f"Could not read frame at {frame_path}")
 
     # Create a copy for overlay
-    overlay = frame.copy()
+    overlay = frame_img.copy()
 
-    # Get the frame from the database to reference its ID
-    frame_record = db.query(Frame).filter_by(file_path=frame_path).first()
-    if not frame_record:
-        logger.error(f"Frame {frame_path} not found in database")
-        raise ValueError(f"Frame {frame_path} not found in database")
-
-    logger.info(
-        f"Drawing masks for objects {object_ids} on frame {frame_path}")
-    # For each object ID
-    for obj_id in object_ids:
-        # Get object from database
-        obj = db.query(Object).filter_by(id=obj_id).first()
-        if not obj:
-            logger.warning(
-                f"Object with ID {obj_id} not found in database, skipping")
+    # For each object, get its mask and draw it
+    for obj in objects_with_masks:
+        mask_data = db.query(Mask).filter(Mask.object_id == obj.id).first()
+        if not mask_data:
             continue
 
-        # Get all points for this object
-        points = db.query(Point).filter_by(object_id=obj_id).all()
+        # Deserialize mask
+        mask = deserialize_mask(mask_data.mask)
 
-        # Get mask for this object and frame from the Mask table
-        mask_record = db.query(Mask).filter_by(
-            object_id=obj_id,
-            frame_id=frame_record.id
-        ).first()
+        # Convert hex color to BGR (for OpenCV)
+        try:
+            r, g, b = hex_to_rgb(obj.color)
+            color = (b, g, r)  # BGR format for OpenCV
+        except ValueError:
+            color = (0, 255, 0)  # Default green if invalid color
 
-        # Draw mask if available
-        if mask_record and mask_record.mask:
-            # Deserialize the mask
-            mask = deserialize_mask(mask_record.mask)
+        # Create color mask
+        color_mask = np.zeros_like(frame_img)
+        if mask.shape[:2] != frame_img.shape[:2]:
+            # Resize mask if dimensions don't match
+            mask = cv2.resize(mask.astype(np.uint8), (frame_img.shape[1], frame_img.shape[0]),
+                              interpolation=cv2.INTER_NEAREST)
+            mask = mask.astype(bool)
 
-            # Parse the color from hex string (format: "#RRGGBB")
-            if obj.color and obj.color.startswith('#') and len(obj.color) == 7:
-                # Convert hex to BGR (OpenCV uses BGR format)
-                r = int(obj.color[1:3], 16)
-                g = int(obj.color[3:5], 16)
-                b = int(obj.color[5:7], 16)
-                color = (b, g, r)  # BGR format for OpenCV
-            else:
-                # Fallback to a default color if the stored color is invalid
-                color = (0, 255, 0)  # Green in BGR
+        color_mask[mask] = color
 
-            # Apply mask with color
-            color_mask = np.zeros_like(frame)
-            color_mask[mask] = color
+        # Overlay with transparency
+        cv2.addWeighted(color_mask, 0.5, overlay, 1, 0, overlay)
 
-            # Overlay with transparency
-            cv2.addWeighted(color_mask, 0.25, overlay, 0.75, 0, overlay)
+    # Save the inference image
+    inference_path = inference_dir / frame_path.name
+    cv2.imwrite(str(inference_path), overlay)
+    logger.info(f"Saved inference image with masks at {inference_path}")
 
-        # Draw all points for this object
-        for point in points:
-            # Green for positive points (label=1), Red for negative points (label=0)
-            point_color = (0, 255, 0) if point.label == 1 else (
-                0, 0, 255)  # BGR format
-
-            # Draw the point as a circle
-            cv2.circle(overlay, (point.x, point.y), 5,
-                       point_color, -1)  # -1 means filled circle
-
-            # Draw a small border around the circle to improve visibility
-            cv2.circle(overlay, (point.x, point.y), 5, (255, 255, 255), 1)
-
-    frame_path_obj = Path(frame_path)
-    output_path = f"{output_dir}/{frame_path_obj.stem}{frame_path_obj.suffix}"
-
-    # Save the result
-    cv2.imwrite(output_path, overlay)
-    logger.info(f"Saved masked frame to {output_path}")
-
-    return output_path
+    return str(inference_path)
 
 
 def create_bounding_box_on_mask(mask):
