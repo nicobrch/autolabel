@@ -40,10 +40,10 @@ export function InferenceSettings({
               <SelectValue placeholder="Select model" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="SAM2-T">SAM2-Tiny</SelectItem>
-              <SelectItem value="SAM2-S">SAM2-Small</SelectItem>
-              <SelectItem value="SAM2-BP">SAM2-BasePlus</SelectItem>
-              <SelectItem value="SAM2-L">SAM2-Large</SelectItem>
+              <SelectItem value="tiny">SAM2-Tiny</SelectItem>
+              <SelectItem value="small">SAM2-Small</SelectItem>
+              <SelectItem value="base-plus">SAM2-BasePlus</SelectItem>
+              <SelectItem value="large">SAM2-Large</SelectItem>
             </SelectContent>
           </Select>
         </div>
