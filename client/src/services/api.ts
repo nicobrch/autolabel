@@ -228,3 +228,38 @@ export async function createVideoObject(
 
   return response.json();
 }
+
+export async function updateVideoObject(
+  videoId: string,
+  objectId: string,
+  data: { name: string; color?: string },
+): Promise<VideoObject> {
+  const response = await fetch(
+    `${apiUrl}/videos/${videoId}/objects/${objectId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (!response.ok) {
+    let errorDetail = "Failed to update object";
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.detail) {
+        errorDetail = errorData.detail;
+      }
+    } catch (e) {
+      const textError = await response.text().catch(() => "");
+      if (textError) {
+        errorDetail = textError;
+      }
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}

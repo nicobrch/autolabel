@@ -11,10 +11,11 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TypographyH4 } from "@/components/typography/typography";
-import { Plus, Undo2, Eraser } from "lucide-react";
+import { Plus, Undo2, Eraser, Pen } from "lucide-react";
 import { VideoObject } from "@/services/api";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { CreateObjectForm } from "@/components/video-labeling/CreateObjectForm";
+import { EditObjectForm } from "@/components/video-labeling/EditObjectForm";
 
 interface LabelingOptionsProps {
   selectedObject: string;
@@ -36,7 +37,12 @@ export function LabelingOptions({
   isLoading = false,
   videoId,
 }: LabelingOptionsProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  const selectedObjectData = selectedObject
+    ? videoObjects.find((obj) => obj.id.toString() === selectedObject)
+    : undefined;
 
   return (
     <Card>
@@ -48,15 +54,42 @@ export function LabelingOptions({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="object-type">Create Object</Label>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Create New Object
-              </Button>
-            </DialogTrigger>
-            <CreateObjectForm videoId={videoId} setIsOpen={setIsDialogOpen} />
-          </Dialog>
+          <div className="flex gap-2">
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button className="flex-1">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Object
+                </Button>
+              </DialogTrigger>
+              <CreateObjectForm
+                videoId={videoId}
+                setIsOpen={setIsCreateDialogOpen}
+              />
+            </Dialog>
+
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  size="icon"
+                  disabled={!selectedObjectData}
+                  title="Edit Selected Object"
+                >
+                  <Pen className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              {selectedObjectData && (
+                <EditObjectForm
+                  videoId={videoId}
+                  objectData={selectedObjectData}
+                  setIsOpen={setIsEditDialogOpen}
+                />
+              )}
+            </Dialog>
+          </div>
         </div>
 
         <div className="space-y-2">
