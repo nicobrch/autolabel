@@ -12,6 +12,7 @@ import subprocess
 import uvicorn
 from fastapi.staticfiles import StaticFiles
 from os.path import abspath
+from sqlalchemy import exists
 
 app = FastAPI(
     title="AutoLabel API",
@@ -435,6 +436,52 @@ async def label_frame(
             status_code=500,
             detail=f"Failed to segment objects: {str(e)}"
         )
+
+
+# Endpoint to propagate masks through the entire video
+@app.post("/api/v1/videos/{video_id}/propagate", response_model=dict)
+async def propagate_video(
+    video_id: int,
+    checkpoint: str = Body(..., embed=True,
+                           description="SAM2 model checkpoint to use (tiny, small, base-plus, large)"),
+    db: Session = Depends(get_db)
+):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Get all objects for this video that have points
+    objects_with_points = db.query(Object).filter(
+        Object.video_id == video_id,
+        exists().where(Point.object_id == Object.id)
+    ).all()
+
+    if not objects_with_points:
+        raise HTTPException(
+            status_code=400,
+            detail="No objects with points found for this video. Add points to at least one object."
+        )
+
+    try:
+        # Initialize SAM2 Inference API with specified checkpoint
+        inference_api = InferenceAPI(checkpoint=checkpoint)
+
+        # Call the propagate_in_video method
+        output_video_path = inference_api.propagate_in_video(video_id, db=db)
+
+        return {
+            "status": "success",
+            "video_path": output_video_path,
+            "video_id": video_id
+        }
+    except Exception as e:
+        logger.error(f"Failed to propagate masks in video: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to propagate masks in video: {str(e)}"
+        )
+
 
 if __name__ == "__main__":
     uvicorn.run("__main__:app", host="0.0.0.0",
