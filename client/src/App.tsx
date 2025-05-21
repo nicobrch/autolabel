@@ -7,6 +7,7 @@ import {
   Navigate,
   useParams,
 } from "react-router"; // Added Navigate, useParams
+import { Toaster } from "@/components/ui/sonner";
 const queryClient = new QueryClient();
 
 import AppLayout from "./components/layout/AppLayout";
@@ -49,6 +50,7 @@ export default function App() {
               />
             </Route>
           </Routes>
+          <Toaster />
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>

@@ -13,6 +13,7 @@ import {
 } from "@/services/api";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import { toast } from "sonner";
 
 export default function VideoLabeling() {
   const { videoId } = useParams<{ videoId: string }>();
@@ -75,7 +76,27 @@ export default function VideoLabeling() {
   const isPending = isVideoPending || isFrameCountPending || isObjectsPending;
   const error = videoError || frameCountError || objectsError;
 
+  // Helper function to show missing object error
+  const showMissingObjectError = () => {
+    toast.error("No object selected", {
+      description: "Please create and select an object before labeling",
+    });
+  };
+
   const handleImageClick = async (event: MouseEvent<HTMLImageElement>) => {
+    // If no objects exist or no object is selected, show error and return
+    if (!objectsData?.length) {
+      toast.error("No objects available", {
+        description: "Please create an object before trying to add points",
+      });
+      return;
+    }
+
+    if (!selectedObject) {
+      showMissingObjectError();
+      return;
+    }
+
     const imgElement = event.currentTarget;
     const rect = imgElement.getBoundingClientRect();
 
@@ -143,6 +164,19 @@ export default function VideoLabeling() {
   };
 
   const handleLabelVideo = () => {
+    // If no objects exist or no object is selected, show error and return
+    if (!objectsData?.length) {
+      toast.error("No objects available", {
+        description: "Please create an object before trying to label the video",
+      });
+      return;
+    }
+
+    if (!selectedObject) {
+      showMissingObjectError();
+      return;
+    }
+
     console.log("Label video clicked");
     // Add logic to start video labeling/propagation
   };
@@ -167,6 +201,7 @@ export default function VideoLabeling() {
               onImageClick={handleImageClick}
               currentFrame={currentFrame}
               totalFrames={totalFrames}
+              hasSelectedObject={!!selectedObject}
             />
           )}
         </div>
