@@ -318,3 +318,58 @@ export async function labelVideoFrame(
 
   return response.json();
 }
+
+interface PropagateVideoParams {
+  videoId: string;
+  checkpoint: string;
+}
+
+interface PropagateVideoResponse {
+  status: "success";
+  video_path: string;
+  video_id: number;
+}
+
+export async function propagateVideo(
+  params: PropagateVideoParams,
+): Promise<PropagateVideoResponse> {
+  const { videoId, checkpoint } = params;
+
+  const response = await fetch(`${apiUrl}/videos/${videoId}/propagate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      checkpoint,
+    }),
+  });
+
+  if (!response.ok) {
+    try {
+      const errorData = await response.json();
+      // Handle structured error response
+      if (errorData && typeof errorData === "object") {
+        if (errorData.detail) {
+          throw new Error(errorData.detail);
+        } else {
+          throw new Error(JSON.stringify(errorData));
+        }
+      }
+      throw new Error(`Failed to propagate video (status: ${response.status})`);
+    } catch (e) {
+      // If JSON parsing fails, try to get text
+      if (e instanceof Error) {
+        throw e;
+      }
+      const errorText = await response
+        .text()
+        .catch(() => `Failed to propagate video (status: ${response.status})`);
+      throw new Error(
+        errorText || `Failed to propagate video (status: ${response.status})`,
+      );
+    }
+  }
+
+  return response.json();
+}
