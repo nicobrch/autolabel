@@ -265,6 +265,7 @@ export default function VideoLabeling() {
             modelCheckpoint={modelCheckpoint}
             onModelCheckpointChange={setModelCheckpoint}
             onLabelVideo={handleLabelVideo}
+            videoId={videoId || ""}
           />
 
           <LabelingOptions

@@ -10,18 +10,73 @@ import {
 import { TypographyH4 } from "@/components/typography/typography";
 import { Button } from "@/components/ui/button";
 import { Brain } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { propagateVideo } from "@/services/api";
+import { toast } from "sonner";
 
 interface InferenceSettingsProps {
   modelCheckpoint: string;
   onModelCheckpointChange: (value: string) => void;
   onLabelVideo: () => void;
+  videoId: string;
 }
 
 export function InferenceSettings({
   modelCheckpoint,
   onModelCheckpointChange,
   onLabelVideo,
+  videoId,
 }: InferenceSettingsProps) {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLabelVideo = async () => {
+    if (!videoId) {
+      toast.error("Video ID is missing");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      toast.info("Processing video", {
+        description:
+          "Propagating object masks through the video. This may take a while...",
+        duration: 5000,
+      });
+
+      const result = await propagateVideo({
+        videoId,
+        checkpoint: modelCheckpoint,
+      });
+
+      // Call parent callback
+      onLabelVideo();
+
+      toast.success("Video processed successfully", {
+        description: "Object masks have been propagated through the video.",
+      });
+
+      // Redirect to the labeled preview page
+      navigate(`/videos/${result.video_id}/preview`);
+    } catch (error) {
+      console.error("Failed to propagate video:", error);
+
+      // Improved error display
+      let errorMessage = "An unexpected error occurred";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      toast.error("Failed to propagate video", {
+        description: errorMessage,
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -35,6 +90,7 @@ export function InferenceSettings({
           <Select
             value={modelCheckpoint}
             onValueChange={onModelCheckpointChange}
+            disabled={isProcessing}
           >
             <SelectTrigger id="model-checkpoint" className="w-full">
               <SelectValue placeholder="Select model" />
@@ -47,9 +103,22 @@ export function InferenceSettings({
             </SelectContent>
           </Select>
         </div>
-        <Button className="w-full" onClick={onLabelVideo}>
-          <Brain className="h-4 w-4 mr-2" />
-          Label Video
+        <Button
+          className="w-full"
+          onClick={handleLabelVideo}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <>
+              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+              Processing Video...
+            </>
+          ) : (
+            <>
+              <Brain className="h-4 w-4 mr-2" />
+              Label Video
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>
