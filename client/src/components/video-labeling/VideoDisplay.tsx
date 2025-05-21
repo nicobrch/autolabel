@@ -1,4 +1,4 @@
-import { MouseEvent } from "react";
+import { MouseEvent, useEffect, useState } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 interface VideoDisplayProps {
@@ -16,10 +16,23 @@ export function VideoDisplay({
   totalFrames,
   hasSelectedObject = false,
 }: VideoDisplayProps) {
+  // State to store the cache-busting URL
+  const [cacheBustedUrl, setCacheBustedUrl] = useState("");
+
+  // Update the cache-busted URL whenever the original URL changes
+  useEffect(() => {
+    if (!imageUrl) return;
+
+    // Add a timestamp query parameter to bypass browser cache
+    const timestamp = new Date().getTime();
+    const separator = imageUrl.includes("?") ? "&" : "?";
+    setCacheBustedUrl(`${imageUrl}${separator}t=${timestamp}`);
+  }, [imageUrl]);
+
   return (
     <AspectRatio ratio={16 / 9}>
       <img
-        src={imageUrl}
+        src={cacheBustedUrl || imageUrl}
         alt="Video frame"
         width={1280}
         height={720}

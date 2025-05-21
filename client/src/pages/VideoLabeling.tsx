@@ -1,15 +1,16 @@
-import { useState, MouseEvent } from "react";
+import { useState, MouseEvent, useEffect } from "react";
 import { VideoDisplay } from "@/components/video-labeling/VideoDisplay";
 import { InferenceSettings } from "@/components/video-labeling/InferenceSettings";
 import { LabelingOptions } from "@/components/video-labeling/LabelingOptions";
 import { ContentHeader } from "@/components/layout/ContentHeader";
 import { useParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchVideoFrameCount,
   fetchVideoById,
   getFirstInferenceFrameUrl,
   fetchVideoObjects,
+  labelVideoFrame,
 } from "@/services/api";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import LoadingSpinner from "@/components/ui/loading-spinner";
@@ -17,10 +18,12 @@ import { toast } from "sonner";
 
 export default function VideoLabeling() {
   const { videoId } = useParams<{ videoId: string }>();
+  const queryClient = useQueryClient();
 
-  const [modelCheckpoint, setModelCheckpoint] = useState("SAM2-T");
+  const [modelCheckpoint, setModelCheckpoint] = useState("small");
   const [selectedObject, setSelectedObject] = useState<string>("");
   const [pointType, setPointType] = useState("positive");
+  const [isProcessing, setIsProcessing] = useState(false);
   const currentFrame = 1;
 
   // Use React Query to fetch video data
@@ -65,16 +68,39 @@ export default function VideoLabeling() {
     enabled: !!videoId,
   });
 
+  // NEW QUERY: Use React Query to fetch the inference frame
+  const {
+    isPending: isFrameLoading,
+    error: frameError,
+    data: inferenceFrameUrl,
+    refetch: refetchFrame,
+  } = useQuery({
+    queryKey: ["inferenceFrame", videoId],
+    queryFn: () => {
+      if (!videoId || !videoData) return null;
+      // Return the URL directly rather than fetching it - we just need the URL for the image
+      return getFirstInferenceFrameUrl(videoData.file_name);
+    },
+    enabled: !!videoId && !!videoData,
+    staleTime: 0, // Consider data as stale immediately so it will refetch after revalidation
+  });
+
   // Get the total frames from the query result
   const totalFrames = frameData?.frame_count || 0;
 
-  // Get first frame URL if video data is available
-  const firstFrameUrl = videoData
-    ? getFirstInferenceFrameUrl(videoData.file_name)
-    : "/placeholder.svg?height=720&width=1280";
+  // Use the inference frame URL from the query, or fallback to a placeholder
+  const displayImageUrl =
+    inferenceFrameUrl ||
+    (videoData
+      ? getFirstInferenceFrameUrl(videoData.file_name)
+      : "/placeholder.svg?height=720&width=1280");
 
-  const isPending = isVideoPending || isFrameCountPending || isObjectsPending;
-  const error = videoError || frameCountError || objectsError;
+  // Create a unique key that changes when the frame should be refreshed
+  const displayKey = `frame-${videoId}-${isProcessing ? "processing" : inferenceFrameUrl}`;
+
+  const isPending =
+    isVideoPending || isFrameCountPending || isObjectsPending || isFrameLoading;
+  const error = videoError || frameCountError || objectsError || frameError;
 
   // Helper function to show missing object error
   const showMissingObjectError = () => {
@@ -82,6 +108,13 @@ export default function VideoLabeling() {
       description: "Please create and select an object before labeling",
     });
   };
+
+  // Reset query caches when videoId changes
+  useEffect(() => {
+    if (videoId) {
+      queryClient.invalidateQueries({ queryKey: ["inferenceFrame", videoId] });
+    }
+  }, [videoId, queryClient]);
 
   const handleImageClick = async (event: MouseEvent<HTMLImageElement>) => {
     // If no objects exist or no object is selected, show error and return
@@ -94,6 +127,11 @@ export default function VideoLabeling() {
 
     if (!selectedObject) {
       showMissingObjectError();
+      return;
+    }
+
+    if (!videoId) {
+      toast.error("Video ID is missing");
       return;
     }
 
@@ -125,41 +163,42 @@ export default function VideoLabeling() {
 
     // Determine label based on pointType state
     const label = pointType === "positive" ? 1 : 0;
-    const object_id = selectedObject ? parseInt(selectedObject, 10) : 0;
+    const objectId = parseInt(selectedObject, 10);
+
+    // Set processing state to show loading spinner
+    setIsProcessing(true);
 
     try {
-      const response = await fetch(`/api/v1/objects/${object_id}/points`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ x, y, label }),
+      // Use the API function instead of direct fetch
+      const result = await labelVideoFrame({
+        videoId,
+        objectId,
+        x,
+        y,
+        label,
+        checkpoint: modelCheckpoint,
       });
 
-      if (!response.ok) {
-        // Handle non-successful responses (e.g., 4xx, 5xx)
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-          const errorData = await response.json();
-          console.error("Error sending point:", response.status, errorData);
-        } else {
-          console.error(
-            "Error sending point: Received non-JSON response",
-            response.status,
-            response.statusText,
-          );
-        }
-        // Optionally, show an error message to the user
-      } else {
-        // Handle successful response (e.g., 2xx)
-        const result = await response.json();
-        console.log("Point added successfully:", result);
-        // Optionally, update UI or state based on success
-      }
+      console.log("Frame labeled successfully:", result);
+
+      // Display success message
+      toast.success("Frame labeled successfully", {
+        description: `Object ${selectedObject} has been segmented`,
+      });
+
+      // Invalidate and refetch relevant queries to update the UI
+      queryClient.invalidateQueries({ queryKey: ["inferenceFrame", videoId] });
+      queryClient.invalidateQueries({ queryKey: ["videoObjects", videoId] });
+
+      // Force a refetch of the frame
+      await refetchFrame();
     } catch (error) {
-      // Handle network errors or issues with the fetch call itself
-      console.error("Failed to send point:", error);
-      // Optionally, show an error message to the user
+      console.error("Failed to process frame:", error);
+      toast.error("Failed to label frame", {
+        description: (error as Error).message || "An unexpected error occurred",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -186,7 +225,7 @@ export default function VideoLabeling() {
       <ContentHeader />
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
-          {isPending ? (
+          {isPending && !isProcessing ? (
             <div className="flex items-center justify-center h-[720px] bg-muted">
               <LoadingSpinner />
               <span className="ml-2">Loading video frames...</span>
@@ -195,9 +234,24 @@ export default function VideoLabeling() {
             <div className="flex items-center justify-center h-[720px] bg-muted">
               <ErrorMessage error={(error as Error).message} />
             </div>
+          ) : isProcessing ? (
+            <div className="flex items-center justify-center h-[720px] bg-muted relative">
+              <img
+                src={displayImageUrl}
+                alt="Video frame"
+                className="max-w-full max-h-full opacity-50"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <LoadingSpinner />
+                <span className="ml-2 font-semibold text-lg">
+                  Processing frame...
+                </span>
+              </div>
+            </div>
           ) : (
             <VideoDisplay
-              imageUrl={firstFrameUrl}
+              key={displayKey} // Add key prop to force re-render
+              imageUrl={displayImageUrl}
               onImageClick={handleImageClick}
               currentFrame={currentFrame}
               totalFrames={totalFrames}
