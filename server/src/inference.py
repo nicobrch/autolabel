@@ -1,11 +1,13 @@
 import torch
 import numpy as np
+import cv2
+import subprocess
 from pathlib import Path
 from typing import Union
 from sqlalchemy.orm import Session
 from db import get_db
-from models import Object, Point, Frame, Mask
-from utils import serialize_mask, logger
+from models import Object, Point, Frame, Mask, Video
+from utils import serialize_mask, logger, hex_to_rgb
 from sam2.build_sam import build_sam2_video_predictor
 
 
@@ -30,14 +32,14 @@ class InferenceAPI:
         """Initialize the SAM2 predictor with the specified checkpoint."""
 
         model_map = {
-            "tiny": ("../../../sam2/checkpoints/sam2.1_hiera_tiny.pt",
-                     "../../../sam2/sam2/configs/sam2.1/sam2.1_hiera_t.yaml"),
-            "small": ("../../../sam2/checkpoints/sam2.1_hiera_small.pt",
-                      "../../../sam2/sam2/configs/sam2.1/sam2.1_hiera_s.yaml"),
-            "base-plus": ("../../../sam2/checkpoints/sam2.1_hiera_base_plus.pt",
-                          "../../../sam2/sam2/configs/sam2.1/sam2.1_hiera_b+.yaml"),
-            "large": ("../sam2/checkpoints/sam2.1_hiera_large.pt",
-                      "../../../sam2/sam2/configs/sam2.1/sam2.1_hiera_l.yaml"),
+            "tiny": (r"C:\Users\Nico\Develop\sam2\checkpoints\sam2.1_hiera_tiny.pt",
+                     r"C:\Users\Nico\Develop\sam2\sam2\configs\sam2.1\sam2.1_hiera_t.yaml"),
+            "small": (r"C:\Users\Nico\Develop\sam2\checkpoints\sam2.1_hiera_small.pt",
+                      r"C:\Users\Nico\Develop\sam2\sam2\configs\sam2.1\sam2.1_hiera_s.yaml"),
+            "base-plus": (r"C:\Users\Nico\Develop\sam2\checkpoints\sam2.1_hiera_base_plus.pt",
+                          r"C:\Users\Nico\Develop\sam2\sam2\configs\sam2.1\sam2.1_hiera_b+.yaml"),
+            "large": (r"C:\Users\Nico\Develop\sam2\checkpoints\sam2.1_hiera_large.pt",
+                      r"C:\Users\Nico\Develop\sam2\sam2\configs\sam2.1\sam2.1_hiera_l.yaml"),
         }
 
         if self.checkpoint not in model_map:
@@ -87,13 +89,13 @@ class InferenceAPI:
         else:
             logger.warning("No inference state to reset.")
 
-    def segment_object(self, object_id: int, start_frame_idx: int, db: Session = next(get_db())) -> np.ndarray:
+    def segment_object(self, object_id: int, db: Session = next(get_db())) -> np.ndarray:
         """
         Segment an object using SAM2 and save the mask to the database.
+        Always uses the first frame of the video.
 
         Args:
             object_id: ID of the object to segment
-            start_frame_idx: Frame index to segment on
             db: Database session
 
         Returns:
@@ -114,23 +116,25 @@ class InferenceAPI:
         if not points:
             raise ValueError(f"No points found for object ID {object_id}.")
 
-        # Check if the frame exists in the database
+        # Get the first frame for this video (we only store one frame)
         current_frame = db.query(Frame).filter_by(
-            video_id=current_object.video_id, frame_number=start_frame_idx).first()
+            video_id=current_object.video_id).first()
         if not current_frame:
             raise ValueError(
-                f"Frame with ID {start_frame_idx} not found in database.")
+                f"No frames found for video ID {current_object.video_id}.")
 
         # Prepare data for SAM2
         points_array = np.array([[p.x, p.y] for p in points], dtype=np.float32)
         labels_array = np.array([p.label for p in points], dtype=np.int32)
 
+        # Always use frame index 0 since we're working with the first frame
         logger.info(
-            f"Performing segmentation for object {object_id} on frame {start_frame_idx}")
+            f"Performing segmentation for object {object_id} on first frame")
+
         # Perform segmentation
         _, _, out_mask_logits = self.predictor.add_new_points_or_box(
             inference_state=self.inference_state,
-            start_frame_idx=start_frame_idx,
+            frame_idx=0,  # First frame
             obj_id=object_id,
             points=points_array,
             labels=labels_array,
@@ -142,66 +146,99 @@ class InferenceAPI:
 
         # Check if mask already exists and update it, or create new one
         existing_mask = db.query(Mask).filter_by(
-            object_id=object_id, frame_id=current_frame.id).first()
+            object_id=object_id).first()
 
         if existing_mask:
             existing_mask.mask = mask_blob
             logger.info(
-                f"Updated existing mask for object {object_id}, frame {start_frame_idx}")
+                f"Updated existing mask for object {object_id}, first frame")
         else:
             new_mask = Mask(
                 object_id=object_id,
-                frame_id=current_frame.id,
                 mask=mask_blob
             )
             db.add(new_mask)
             logger.info(
-                f"Created new mask for object {object_id}, frame {start_frame_idx}")
+                f"Created new mask for object {object_id}, first frame")
 
         db.commit()
         return mask
 
-    def propagate_in_video(self, video_id: int, start_frame_idx: int, db: Session = next(get_db())) -> None:
-        frames = db.query(Frame).filter_by(video_id=video_id).all()
-        if not frames:
-            raise ValueError(f"No frames found for video ID {video_id}.")
+    def propagate_in_video(self, video_id: int, db: Session = next(get_db())) -> str:
+        """
+        Propagate masks for all objects through video frames.
+        Instead of storing masks in database, directly draws them on frames
+        and creates a video file.
 
-        # Get the video object from database using video_id
-        video = db.query(Object).filter_by(id=video_id).first()
+        Args:
+            video_id: ID of the video
+            db: Database session
+
+        Returns:
+            Path to the created video file
+        """
+        # Get the video from database
+        video = db.query(Video).filter_by(id=video_id).first()
         if not video:
-            logger.error(f"Video with ID {video_id} not found in database")
             raise ValueError(
                 f"Video with ID {video_id} not found in database.")
 
-        # Get frame with the start_frame_idx to find the frames directory
-        start_frame = db.query(Frame).filter_by(
-            video_id=video_id, frame_number=start_frame_idx).first()
-        if not start_frame:
+        # Get the first (and only) frame for this video
+        frame = db.query(Frame).filter_by(video_id=video_id).first()
+        if not frame:
+            raise ValueError(f"No frames found for video ID {video_id}.")
+
+        # Get all objects for this video that have points
+        objects_with_points = db.query(Object).filter(
+            Object.video_id == video_id,
+            db.exists().where(Point.object_id == Object.id)
+        ).all()
+
+        if not objects_with_points:
             raise ValueError(
-                f"No frame with index {start_frame_idx} found for video ID {video_id}.")
+                f"No objects with points found for video ID {video_id}.")
 
-        # Extract frames directory path from the start frame's file path
-        # The file path is like "/path/to/frames_dir/0001.jpg", so we need the directory part
-        frames_dir = Path(start_frame.file_path).parent
+        # Extract frames directory path from the frame's file path
+        frame_path = Path(frame.file_path)
+        frames_dir = frame_path.parent  # original frames directory
+        # parent dir containing both original and inference
+        video_frames_dir = frames_dir.parent
+        original_frames_dir = video_frames_dir / "original"
+        inference_frames_dir = video_frames_dir / "inference"
 
-        # Initalize SAM2 state using frames directory
-        self.initialize_state(frames_dir)
+        # Ensure inference directory exists
+        inference_frames_dir.mkdir(parents=True, exist_ok=True)
 
-        # Get objects from database given the video_id
-        objects = db.query(Object).filter_by(video_id=video_id).all()
-        if not objects:
-            raise ValueError(f"No objects found for video ID {video_id}.")
+        # Clear any existing frames in the inference directory
+        for file in inference_frames_dir.glob("*.jpg"):
+            file.unlink()
 
-        for obj in objects:
+        # Get list of all original frames
+        original_frames = sorted(original_frames_dir.glob("*.jpg"))
+        if not original_frames:
+            raise ValueError(f"No frames found in {original_frames_dir}")
+
+        # Initialize SAM2 state using original frames directory
+        self.initialize_state(original_frames_dir)
+
+        # Process each object, adding its points to the predictor
+        for obj in objects_with_points:
             # Get all points for this object
             points = db.query(Point).filter_by(object_id=obj.id).all()
             if not points:
-                raise ValueError(f"No points found for object ID {obj.id}.")
+                logger.warning(
+                    f"No points found for object ID {obj.id}, skipping")
+                continue
 
             # Prepare data for SAM2
             points_array = np.array([[p.x, p.y]
                                     for p in points], dtype=np.float32)
             labels_array = np.array([p.label for p in points], dtype=np.int32)
+
+            # Always use frame index 0 since we're working with the first frame
+            start_frame_idx = 0
+
+            # Add points to the predictor
             self.predictor.add_new_points_or_box(
                 inference_state=self.inference_state,
                 start_frame_idx=start_frame_idx,
@@ -210,31 +247,89 @@ class InferenceAPI:
                 labels=labels_array,
             )
 
+        # Propagate masks through video frames
+        # This generates frame_idx, object_ids, and mask_logits for each frame
         for out_frame_idx, out_obj_ids, out_mask_logits in self.predictor.propagate_in_video(
             inference_state=self.inference_state,
-            start_frame_idx=start_frame_idx,
-            max_frame_num_to_track=None,
-            reverse=True
+            start_frame_idx=0,  # Start from first frame
+            max_frame_num_to_track=None,  # Process all frames
+            reverse=False  # Forward direction
         ):
-            for i, out_obj_id in enumerate(out_obj_ids):
-                # Create mask and save to database
+            # Get the corresponding original frame
+            try:
+                original_frame_path = original_frames[out_frame_idx]
+            except IndexError:
+                logger.warning(
+                    f"Frame index {out_frame_idx} out of range, skipping")
+                continue
+
+            # Read the original frame
+            frame_img = cv2.imread(str(original_frame_path))
+            if frame_img is None:
+                logger.warning(
+                    f"Could not read frame {original_frame_path}, skipping")
+                continue
+
+            # Create a copy for overlay
+            overlay = frame_img.copy()
+
+            # Process each object's mask for this frame
+            for i, obj_id in enumerate(out_obj_ids):
+                # Convert mask logits to binary mask
                 mask = (out_mask_logits[i] > 0.0).cpu().numpy().squeeze()
-                mask_blob = serialize_mask(mask)
 
-                # Check if mask already exists and update it, or create new one
-                existing_mask = db.query(Mask).filter_by(
-                    object_id=out_obj_id, frame_id=out_frame_idx).first()
+                # Get the object to retrieve its color
+                obj = next(
+                    (o for o in objects_with_points if o.id == obj_id), None)
+                if not obj:
+                    continue
 
-                if existing_mask:
-                    existing_mask.mask = mask_blob
-                    logger.info(
-                        f"Updated existing mask for object {out_obj_id}, frame {out_frame_idx}")
-                else:
-                    new_mask = Mask(
-                        object_id=out_obj_id,
-                        frame_id=out_frame_idx,
-                        mask=mask_blob
-                    )
-                    db.add(new_mask)
-                    logger.info(
-                        f"Created new mask for object {out_obj_id}, frame {out_frame_idx}")
+                # Convert hex color to BGR (for OpenCV)
+                try:
+                    r, g, b = hex_to_rgb(obj.color)
+                    color = (b, g, r)  # BGR format for OpenCV
+                except ValueError:
+                    # Use default green if color format is invalid
+                    color = (0, 255, 0)
+
+                # Create color mask
+                color_mask = np.zeros_like(frame_img)
+                color_mask[mask] = color
+
+                # Overlay with transparency
+                cv2.addWeighted(color_mask, 0.25, overlay, 0.75, 0, overlay)
+
+            # Save the frame with masks to inference directory
+            output_frame_path = inference_frames_dir / original_frame_path.name
+            cv2.imwrite(str(output_frame_path), overlay)
+            logger.info(f"Saved inference frame {output_frame_path}")
+
+        # Create video from inference frames
+        video_name = Path(video.file_path).stem
+        output_video_path = video_frames_dir / f"{video_name}.mp4"
+
+        # Build ffmpeg command
+        cmd = [
+            "ffmpeg",
+            "-y",  # Overwrite output file if it exists
+            # Use original video FPS or default to 30
+            "-framerate", str(video.fps or 30),
+            "-pattern_type", "glob",
+            "-i", str(inference_frames_dir / "*.jpg"),
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "23",
+            "-pix_fmt", "yuv420p",  # Widely compatible pixel format
+            str(output_video_path)
+        ]
+
+        # Run ffmpeg to create video
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+            logger.info(f"Created inference video at {output_video_path}")
+        except subprocess.CalledProcessError as e:
+            logger.error(
+                f"Failed to create video: {e.stderr.decode() if e.stderr else str(e)}")
+            raise ValueError(f"Failed to create video: {e}")
+
+        return str(output_video_path)
