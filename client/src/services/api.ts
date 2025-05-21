@@ -15,9 +15,13 @@ export function getFirstFrameUrl(fileName: string): string {
 }
 
 export function getFirstInferenceFrameUrl(fileName: string): string {
-  return `${dataUrl}/frames/${getFileNameWithoutExtension(
+  const baseUrl = `${dataUrl}/frames/${getFileNameWithoutExtension(
     fileName,
   )}/inference/0001.jpg`;
+
+  // Add a timestamp to prevent browser caching
+  const timestamp = new Date().getTime();
+  return `${baseUrl}?t=${timestamp}`;
 }
 
 interface ProjectData {
@@ -259,6 +263,57 @@ export async function updateVideoObject(
       }
     }
     throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+interface LabelFrameParams {
+  videoId: string;
+  objectId: number;
+  x: number;
+  y: number;
+  label: number;
+  checkpoint: string;
+}
+
+interface LabelFrameResponse {
+  status: "success" | "partial_success";
+  objects: Array<{
+    id: number;
+    name: string;
+    color: string;
+    segmented: boolean;
+    error?: string;
+  }>;
+  visualization_url: string;
+  error?: string;
+}
+
+export async function labelVideoFrame(
+  params: LabelFrameParams,
+): Promise<LabelFrameResponse> {
+  const { videoId, objectId, x, y, label, checkpoint } = params;
+
+  const response = await fetch(`${apiUrl}/videos/${videoId}/label_frame`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      object_id: objectId,
+      x,
+      y,
+      label,
+      checkpoint,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(
+      errorData?.detail || `Failed to label frame (status: ${response.status})`,
+    );
   }
 
   return response.json();
