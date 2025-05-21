@@ -2,8 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from db import get_db, init_db
-from models import Project, Video, Object
-from utils import logger, extract_video_metadata, extract_frames_at_frame_step, sqlalchemy_to_dict, random_color
+from models import Project, Video, Object, Point
+from utils import logger, extract_video_metadata, extract_frames_at_frame_step, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame
+from inference import InferenceAPI
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
@@ -35,13 +36,6 @@ app.add_middleware(
 # Mount static files directories
 app.mount("/videos", StaticFiles(directory=abspath("videos")), name="videos")
 app.mount("/data", StaticFiles(directory=abspath("data")), name="data")
-
-
-@app.on_event("startup")
-async def startup():
-    # Initialize database
-    init_db()
-    logger.info("Application started and database initialized")
 
 
 @app.get("/api/v1/")
@@ -335,5 +329,113 @@ async def update_object(
 
     return sqlalchemy_to_dict(obj)
 
+
+# Endpoint to segment objects in a video frame using SAM2
+@app.post("/api/v1/videos/{video_id}/label_frame", response_model=dict)
+async def label_frame(
+    video_id: int,
+    object_id: int = Body(..., description="Object ID to create a point for"),
+    x: int = Body(..., description="X coordinate of the point"),
+    y: int = Body(..., description="Y coordinate of the point"),
+    label: int = Body(...,
+                      description="Point label (1 for positive, 0 for negative)"),
+    checkpoint: str = Body(
+        "small", description="SAM2 model checkpoint to use (tiny, small, base-plus, large)"),
+    db: Session = Depends(get_db)
+):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Check if object exists
+    obj = db.query(Object).filter(Object.id == object_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Object not found")
+
+    # Validate that object belongs to this video
+    if obj.video_id != video_id:
+        raise HTTPException(
+            status_code=400, detail="Object does not belong to this video")
+
+    # Create a new point for the object
+    try:
+        new_point = Point(
+            object_id=object_id,
+            x=x,
+            y=y,
+            label=label
+        )
+        db.add(new_point)
+        db.commit()
+        db.refresh(new_point)
+        logger.info(
+            f"Created new point for object {object_id}: x={x}, y={y}, label={label}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to create point: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create point: {str(e)}")
+
+    # Validate frames directory
+    frames_dir = Path("data/frames") / Path(video.file_path).stem / "original"
+    if not frames_dir.exists():
+        raise HTTPException(
+            status_code=404, detail="Frames directory not found")
+
+    # Count available frames
+    available_frames = sorted(list(frames_dir.glob("*.jpg")))
+    if not available_frames:
+        raise HTTPException(
+            status_code=404, detail="No frames found for this video")
+
+    try:
+        # Initialize SAM2 Inference API with specified checkpoint
+        inference_api = InferenceAPI(checkpoint=checkpoint)
+        inference_api.initialize_state(frames_dir=frames_dir)
+
+        # Segment object using the newly created point
+        try:
+            _ = inference_api.segment_object(object_id, db=db)
+            result_objects = [{
+                "id": object_id,
+                "name": obj.name,
+                "color": obj.color,
+                "segmented": True
+            }]
+        except Exception as e:
+            logger.error(f"Failed to segment object {object_id}: {str(e)}")
+            result_objects = [{
+                "id": object_id,
+                "name": obj.name,
+                "color": obj.color,
+                "segmented": False,
+                "error": str(e)
+            }]
+
+        # Draw the segmentation masks on the frame
+        try:
+            inference_image_path = draw_objects_masks_on_frame(video_id, db=db)
+            visualization_url = str(inference_image_path)
+            return {
+                "status": "success",
+                "objects": result_objects,
+                "visualization_url": visualization_url
+            }
+        except Exception as e:
+            logger.error(f"Failed to draw masks on frame: {str(e)}")
+            return {
+                "status": "partial_success",
+                "objects": result_objects,
+                "error": str(e)
+            }
+    except Exception as e:
+        logger.error(f"Failed to segment objects: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to segment objects: {str(e)}"
+        )
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("__main__:app", host="0.0.0.0",
+                port=8000, reload=True, workers=2)
