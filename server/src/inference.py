@@ -2,9 +2,11 @@ import torch
 import numpy as np
 import cv2
 import subprocess
+import shutil  # Add this import for copying files
 from pathlib import Path
 from typing import Union
 from sqlalchemy.orm import Session
+from sqlalchemy import exists  # Add this import
 from db import get_db
 from models import Object, Point, Frame, Mask, Video
 from utils import serialize_mask, logger, hex_to_rgb
@@ -189,9 +191,10 @@ class InferenceAPI:
             raise ValueError(f"No frames found for video ID {video_id}.")
 
         # Get all objects for this video that have points
+        # Fix: Use SQLAlchemy's exists() function instead of db.exists()
         objects_with_points = db.query(Object).filter(
             Object.video_id == video_id,
-            db.exists().where(Point.object_id == Object.id)
+            exists().where(Point.object_id == Object.id)
         ).all()
 
         if not objects_with_points:
@@ -235,23 +238,18 @@ class InferenceAPI:
                                     for p in points], dtype=np.float32)
             labels_array = np.array([p.label for p in points], dtype=np.int32)
 
-            # Always use frame index 0 since we're working with the first frame
-            start_frame_idx = 0
-
             # Add points to the predictor
             self.predictor.add_new_points_or_box(
                 inference_state=self.inference_state,
-                start_frame_idx=start_frame_idx,
+                frame_idx=0,  # First frame
                 obj_id=obj.id,
                 points=points_array,
                 labels=labels_array,
             )
 
         # Propagate masks through video frames
-        # This generates frame_idx, object_ids, and mask_logits for each frame
         for out_frame_idx, out_obj_ids, out_mask_logits in self.predictor.propagate_in_video(
             inference_state=self.inference_state,
-            start_frame_idx=0,  # Start from first frame
             max_frame_num_to_track=None,  # Process all frames
             reverse=False  # Forward direction
         ):
@@ -297,7 +295,7 @@ class InferenceAPI:
                 color_mask[mask] = color
 
                 # Overlay with transparency
-                cv2.addWeighted(color_mask, 0.25, overlay, 0.75, 0, overlay)
+                cv2.addWeighted(color_mask, 0.5, overlay, 1, 0, overlay)
 
             # Save the frame with masks to inference directory
             output_frame_path = inference_frames_dir / original_frame_path.name
@@ -308,25 +306,49 @@ class InferenceAPI:
         video_name = Path(video.file_path).stem
         output_video_path = video_frames_dir / f"{video_name}.mp4"
 
-        # Build ffmpeg command
+        # FIX: Instead of using glob pattern which isn't supported,
+        # rename frames to ensure sequential numbering
+        frame_files = sorted(inference_frames_dir.glob("*.jpg"))
+
+        # Create a temporary directory for sequentially numbered frames
+        temp_frames_dir = video_frames_dir / "temp_frames"
+        temp_frames_dir.mkdir(exist_ok=True)
+
+        # Clear any existing frames in the temp directory
+        for file in temp_frames_dir.glob("*.jpg"):
+            file.unlink()
+
+        # Copy and rename files with sequential numbering
+        for i, frame_file in enumerate(frame_files):
+            # Define new file name with zero-padding
+            new_file_name = temp_frames_dir / f"frame_{i:04d}.jpg"
+            # Copy and rename the file
+            shutil.copy(frame_file, new_file_name)
+
+        # Run ffmpeg to create video
         cmd = [
             "ffmpeg",
-            "-y",  # Overwrite output file if it exists
-            # Use original video FPS or default to 30
-            "-framerate", str(video.fps or 30),
-            "-pattern_type", "glob",
-            "-i", str(inference_frames_dir / "*.jpg"),
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", "23",
-            "-pix_fmt", "yuv420p",  # Widely compatible pixel format
-            str(output_video_path)
+            "-y",                           # Overwrite output file if it exists
+            "-framerate", "30",             # Frame rate
+            # Input file pattern
+            "-i", str(temp_frames_dir / "frame_%04d.jpg"),
+            "-c:v", "libx264",              # Video codec
+            "-preset", "medium",            # Encoding preset
+            "-crf", "23",                   # Quality
+            "-pix_fmt", "yuv420p",          # Widely compatible pixel format
+            str(output_video_path)          # Output video file
         ]
 
         # Run ffmpeg to create video
         try:
             subprocess.run(cmd, check=True, capture_output=True)
             logger.info(f"Created inference video at {output_video_path}")
+
+            # Clean up temporary directory
+            for file in temp_frames_dir.glob("*.jpg"):
+                file.unlink()
+            temp_frames_dir.rmdir()
+
         except subprocess.CalledProcessError as e:
             logger.error(
                 f"Failed to create video: {e.stderr.decode() if e.stderr else str(e)}")
