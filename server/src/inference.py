@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import exists  # Add this import
 from db import get_db
 from models import Object, Point, Frame, Mask, Video
-from utils import serialize_mask, logger, hex_to_rgb
+from utils import construct_video_from_inference_frames, get_frames_list, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, serialize_mask, logger, hex_to_rgb
 from sam2.build_sam import build_sam2_video_predictor
 
 
@@ -202,12 +202,10 @@ class InferenceAPI:
                 f"No objects with points found for video ID {video_id}.")
 
         # Extract frames directory path from the frame's file path
-        frame_path = Path(frame.file_path)
-        frames_dir = frame_path.parent  # original frames directory
-        # parent dir containing both original and inference
-        video_frames_dir = frames_dir.parent
-        original_frames_dir = video_frames_dir / "original"
-        inference_frames_dir = video_frames_dir / "inference"
+        video_name = Path(video.file_path).stem
+        base_frames_dir = public_frames_base_dir_with_video_name(video_name)
+        inference_frames_dir = public_frames_inference_dir_with_video_name(
+            video_name)
 
         # Ensure inference directory exists
         inference_frames_dir.mkdir(parents=True, exist_ok=True)
@@ -217,12 +215,10 @@ class InferenceAPI:
             file.unlink()
 
         # Get list of all original frames
-        original_frames = sorted(original_frames_dir.glob("*.jpg"))
-        if not original_frames:
-            raise ValueError(f"No frames found in {original_frames_dir}")
+        base_frames = get_frames_list(base_frames_dir)
 
-        # Initialize SAM2 state using original frames directory
-        self.initialize_state(original_frames_dir)
+        # Initialize SAM2 state using base frames directory
+        self.initialize_state(base_frames_dir)
 
         # Process each object, adding its points to the predictor
         for obj in objects_with_points:
@@ -255,7 +251,7 @@ class InferenceAPI:
         ):
             # Get the corresponding original frame
             try:
-                original_frame_path = original_frames[out_frame_idx]
+                original_frame_path = base_frames[out_frame_idx]
             except IndexError:
                 logger.warning(
                     f"Frame index {out_frame_idx} out of range, skipping")
@@ -303,55 +299,13 @@ class InferenceAPI:
             logger.info(f"Saved inference frame {output_frame_path}")
 
         # Create video from inference frames
-        video_name = Path(video.file_path).stem
-        output_video_path = video_frames_dir / f"{video_name}.mp4"
+        construct_video_from_inference_frames(
+            video_id=video_id,
+            model_name=self.checkpoint,
+            db=db
+        )
 
-        # FIX: Instead of using glob pattern which isn't supported,
-        # rename frames to ensure sequential numbering
-        frame_files = sorted(inference_frames_dir.glob("*.jpg"))
-
-        # Create a temporary directory for sequentially numbered frames
-        temp_frames_dir = video_frames_dir / "temp_frames"
-        temp_frames_dir.mkdir(exist_ok=True)
-
-        # Clear any existing frames in the temp directory
-        for file in temp_frames_dir.glob("*.jpg"):
-            file.unlink()
-
-        # Copy and rename files with sequential numbering
-        for i, frame_file in enumerate(frame_files):
-            # Define new file name with zero-padding
-            new_file_name = temp_frames_dir / f"frame_{i:04d}.jpg"
-            # Copy and rename the file
-            shutil.copy(frame_file, new_file_name)
-
-        # Run ffmpeg to create video
-        cmd = [
-            "ffmpeg",
-            "-y",                           # Overwrite output file if it exists
-            "-framerate", "30",             # Frame rate
-            # Input file pattern
-            "-i", str(temp_frames_dir / "frame_%04d.jpg"),
-            "-c:v", "libx264",              # Video codec
-            "-preset", "medium",            # Encoding preset
-            "-crf", "23",                   # Quality
-            "-pix_fmt", "yuv420p",          # Widely compatible pixel format
-            str(output_video_path)          # Output video file
-        ]
-
-        # Run ffmpeg to create video
-        try:
-            subprocess.run(cmd, check=True, capture_output=True)
-            logger.info(f"Created inference video at {output_video_path}")
-
-            # Clean up temporary directory
-            for file in temp_frames_dir.glob("*.jpg"):
-                file.unlink()
-            temp_frames_dir.rmdir()
-
-        except subprocess.CalledProcessError as e:
-            logger.error(
-                f"Failed to create video: {e.stderr.decode() if e.stderr else str(e)}")
-            raise ValueError(f"Failed to create video: {e}")
-
-        return str(output_video_path)
+        # Reset the predictor state
+        self.reset_state()
+        logger.info("Reset SAM2 predictor state after video processing")
+        return str(inference_frames_dir)
