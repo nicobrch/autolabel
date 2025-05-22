@@ -7,6 +7,7 @@ import cv2
 import logging
 import shutil
 import datetime  # Add this import
+import yaml  # Add this import for YAML handling
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 from sqlalchemy.orm import Session
@@ -630,6 +631,70 @@ def create_bounding_box_on_mask(mask):
     return x_min, y_min, x_max + 1, y_max + 1
 
 
+def mask_to_yolo_bbox(mask: np.ndarray, image_width: int, image_height: int) -> tuple:
+    """
+    Convert a binary mask to YOLO format bounding box (normalized coordinates).
+
+    Args:
+        mask: Binary mask as numpy array
+        image_width: Width of the original image
+        image_height: Height of the original image
+
+    Returns:
+        Tuple of (x_center, y_center, width, height) in normalized coordinates
+    """
+    # Get the bounding box coordinates (x_min, y_min, x_max, y_max)
+    try:
+        x_min, y_min, x_max, y_max = create_bounding_box_on_mask(mask)
+
+        # Calculate width and height
+        width = x_max - x_min
+        height = y_max - y_min
+
+        # Calculate center coordinates
+        x_center = x_min + width / 2
+        y_center = y_min + height / 2
+
+        # Normalize coordinates (0-1)
+        x_center_norm = x_center / image_width
+        y_center_norm = y_center / image_height
+        width_norm = width / image_width
+        height_norm = height / image_height
+
+        return (x_center_norm, y_center_norm, width_norm, height_norm)
+    except (IndexError, ValueError):
+        # Return zeros if mask is empty or has issues
+        logger.warning(
+            "Empty or invalid mask encountered when creating YOLO bbox")
+        return (0, 0, 0, 0)
+
+
+def save_yolo_annotations(frame_path: Path, objects_data: list, output_dir: Path) -> None:
+    """
+    Save YOLO format annotations to a text file.
+
+    Args:
+        frame_path: Path to the original frame (used to derive the output filename)
+        objects_data: List of tuples (class_id, x_center, y_center, width, height)
+        output_dir: Directory to save the annotation file
+    """
+    # Create output directory if it doesn't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create output filename (same as frame but with .txt extension)
+    output_file = output_dir / f"{frame_path.stem}.txt"
+
+    # Write annotations to file
+    with open(output_file, 'w') as f:
+        for obj_data in objects_data:
+            class_id, x_center, y_center, width, height = obj_data
+            # YOLO format: <object-class> <x_center> <y_center> <width> <height>
+            f.write(
+                f"{class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}\n")
+
+    logger.info(f"Saved YOLO annotations to {output_file}")
+
+
 def sqlalchemy_to_dict(obj: Any) -> dict:
     """
     Convert SQLAlchemy model instance to a dictionary.
@@ -689,3 +754,33 @@ def hex_to_rgb(hex_color: str) -> tuple:
         return r, g, b
     else:
         raise ValueError("Invalid hex color format")
+
+
+def create_yolo_data_yaml(objects: list, output_dir: Path) -> None:
+    """
+    Create a data.yml file for YOLO training that maps class IDs to names.
+
+    Args:
+        objects: List of Object instances
+        output_dir: Directory to save the YAML file
+    """
+    try:
+        # Create mapping of class index to object name
+        names = {idx: obj.name for idx, obj in enumerate(objects)}
+
+        # Create YAML content
+        yaml_content = {
+            'classes': len(names),  # number of classes
+            'names': names,    # class names
+        }
+
+        # Save to file
+        yaml_file = output_dir / "data.yml"
+
+        with open(yaml_file, 'w') as f:
+            yaml.dump(yaml_content, f,
+                      default_flow_style=False, sort_keys=False)
+
+        logger.info(f"Created YOLO data.yml file at {yaml_file}")
+    except Exception as e:
+        logger.error(f"Error creating YOLO data.yml file: {e}")

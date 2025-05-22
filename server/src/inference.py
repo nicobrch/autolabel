@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import exists  # Add this import
 from db import get_db
 from models import Object, Point, Frame, Mask, Video
-from utils import construct_video_from_inference_frames, get_frames_list, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, serialize_mask, logger, hex_to_rgb
+from utils import construct_video_from_inference_frames, create_yolo_data_yaml, get_frames_list, mask_to_yolo_bbox, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_yolo_dir_with_video_name, save_yolo_annotations, serialize_mask, logger, hex_to_rgb
 from sam2.build_sam import build_sam2_video_predictor
 
 
@@ -170,7 +170,7 @@ class InferenceAPI:
         """
         Propagate masks for all objects through video frames.
         Instead of storing masks in database, directly draws them on frames
-        and creates a video file.
+        and creates a video file. Also saves YOLO format annotations.
 
         Args:
             video_id: ID of the video
@@ -191,7 +191,6 @@ class InferenceAPI:
             raise ValueError(f"No frames found for video ID {video_id}.")
 
         # Get all objects for this video that have points
-        # Fix: Use SQLAlchemy's exists() function instead of db.exists()
         objects_with_points = db.query(Object).filter(
             Object.video_id == video_id,
             exists().where(Point.object_id == Object.id)
@@ -206,12 +205,18 @@ class InferenceAPI:
         base_frames_dir = public_frames_base_dir_with_video_name(video_name)
         inference_frames_dir = public_frames_inference_dir_with_video_name(
             video_name)
+        yolo_dir = public_yolo_dir_with_video_name(video_name)
 
-        # Ensure inference directory exists
+        # Ensure directories exist
         inference_frames_dir.mkdir(parents=True, exist_ok=True)
+        yolo_dir.mkdir(parents=True, exist_ok=True)
 
         # Clear any existing frames in the inference directory
         for file in inference_frames_dir.glob("*.jpg"):
+            file.unlink()
+
+        # Clear any existing YOLO annotations
+        for file in yolo_dir.glob("*.txt"):
             file.unlink()
 
         # Get list of all original frames
@@ -219,6 +224,10 @@ class InferenceAPI:
 
         # Initialize SAM2 state using base frames directory
         self.initialize_state(base_frames_dir)
+
+        # Create a mapping of object IDs to class IDs for YOLO format (starting from 0)
+        object_to_class_id = {obj.id: idx for idx,
+                              obj in enumerate(objects_with_points)}
 
         # Process each object, adding its points to the predictor
         for obj in objects_with_points:
@@ -267,6 +276,9 @@ class InferenceAPI:
             # Create a copy for overlay
             overlay = frame_img.copy()
 
+            # Prepare YOLO annotations for this frame
+            yolo_annotations = []
+
             # Process each object's mask for this frame
             for i, obj_id in enumerate(out_obj_ids):
                 # Convert mask logits to binary mask
@@ -277,6 +289,13 @@ class InferenceAPI:
                     (o for o in objects_with_points if o.id == obj_id), None)
                 if not obj:
                     continue
+
+                # Get YOLO format bounding box and add to annotations
+                class_id = object_to_class_id.get(obj_id, 0)
+                yolo_bbox = mask_to_yolo_bbox(
+                    mask, frame_img.shape[1], frame_img.shape[0])
+                if any(yolo_bbox):  # Only add if not all zeros
+                    yolo_annotations.append((class_id, *yolo_bbox))
 
                 # Convert hex color to BGR (for OpenCV)
                 try:
@@ -296,7 +315,16 @@ class InferenceAPI:
             # Save the frame with masks to inference directory
             output_frame_path = inference_frames_dir / original_frame_path.name
             cv2.imwrite(str(output_frame_path), overlay)
-            logger.info(f"Saved inference frame {output_frame_path}")
+
+            # Save YOLO annotations for this frame
+            save_yolo_annotations(original_frame_path,
+                                  yolo_annotations, yolo_dir)
+
+            logger.info(
+                f"Saved inference frame and YOLO annotations for {original_frame_path.name}")
+
+        # After all frames are processed, create data.yml file with class mappings
+        create_yolo_data_yaml(objects_with_points, yolo_dir)
 
         # Create video from inference frames
         construct_video_from_inference_frames(
