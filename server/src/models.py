@@ -32,6 +32,7 @@ class Video(Base):
     height = Column(Integer)
     fps = Column(Float)
     duration = Column(Float)  # duration in seconds
+    type = Column(String)  # e.g., "base", "inference"
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=datetime.now(timezone.utc),
                         onupdate=datetime.now(timezone.utc))

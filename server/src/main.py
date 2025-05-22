@@ -90,7 +90,10 @@ async def list_project_videos(project_id: int, db: Session = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    videos = db.query(Video).filter(Video.project_id == project_id).all()
+    videos = db.query(Video).filter(
+        Video.project_id == project_id,
+        Video.type == "base"
+    ).all()
     return [sqlalchemy_to_dict(video) for video in videos]
 
 
@@ -216,6 +219,7 @@ async def upload_video(
         height=height,
         fps=fps,
         duration=duration,
+        type="base"
     )
     db.add(new_video)
     db.commit()

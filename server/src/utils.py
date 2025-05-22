@@ -376,7 +376,8 @@ def construct_video_from_inference_frames(video_id: int, model_name: str, db: Se
                 width=video.width,
                 height=video.height,
                 fps=video.fps,
-                duration=video.duration
+                duration=video.duration,
+                type="inference"
             )
             db.add(new_video)
             db.commit()
