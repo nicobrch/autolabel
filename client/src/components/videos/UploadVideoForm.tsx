@@ -33,7 +33,7 @@ export function UploadVideoForm({
   const [name, setName] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [resolution, setResolution] = useState<string>("Original");
-  const [frameSkip, setFrameSkip] = useState<number>(0);
+  const [fps, setFps] = useState<number>(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -62,12 +62,7 @@ export function UploadVideoForm({
     }
 
     try {
-      await uploadVideoFile(
-        parseInt(projectId!),
-        files[0],
-        resolution,
-        frameSkip,
-      );
+      await uploadVideoFile(parseInt(projectId!), files[0], resolution, fps);
       queryClient.invalidateQueries({ queryKey: ["videos", projectId] }); // Update query key
       setIsOpen(false);
     } catch (err) {
@@ -122,13 +117,13 @@ export function UploadVideoForm({
               </Select>
             </div>
             <div className="space-y-2 flex-1">
-              <Label htmlFor="video-frame-skip">Frame Skip</Label>
+              <Label htmlFor="video-fps">Frames Per Second</Label>
               <Input
-                id="video-frame-skip"
+                id="video-fps"
                 type="number"
-                value={frameSkip}
-                onChange={(e) => setFrameSkip(parseInt(e.target.value))}
-                placeholder="e.g., 0"
+                value={fps}
+                onChange={(e) => setFps(parseInt(e.target.value))}
+                placeholder="e.g., 5"
                 required
               />
             </div>
