@@ -1,6 +1,11 @@
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, LargeBinary
-from db import Base
+from sqlalchemy.orm import DeclarativeBase
+
+
+# Create declarative base
+class Base(DeclarativeBase):
+    pass
 
 
 class Project(Base):
@@ -27,6 +32,20 @@ class Video(Base):
     height = Column(Integer)
     fps = Column(Float)
     duration = Column(Float)  # duration in seconds
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc),
+                        onupdate=datetime.now(timezone.utc))
+
+
+class VideoInference(Base):
+    __tablename__ = 'video_inference'
+
+    id = Column(Integer, primary_key=True)
+    base_video_id = Column(Integer, ForeignKey(
+        'videos.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
+    inference_video_id = Column(Integer, ForeignKey(
+        'videos.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
+    model_name = Column(String, nullable=False)  # e.g., "sam2-tiny"
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=datetime.now(timezone.utc),
                         onupdate=datetime.now(timezone.utc))
