@@ -1,8 +1,6 @@
 import torch
 import numpy as np
 import cv2
-import subprocess
-import shutil  # Add this import for copying files
 from pathlib import Path
 from typing import Union
 from sqlalchemy.orm import Session
