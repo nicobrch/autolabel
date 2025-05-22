@@ -1,9 +1,11 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Body
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from db import get_db
 from models import Project, Video, Object, Point
-from utils import logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
+from utils import create_yolo_dataset_zip, logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
 from inference import InferenceAPI
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -495,6 +497,44 @@ async def propagate_video(
             detail=f"Failed to propagate masks in video: {str(e)}"
         )
 
+
+# Add this endpoint to your main.py file
+@app.get("/api/v1/videos/{video_id}/download-yolo-dataset", response_class=FileResponse)
+async def download_yolo_dataset(video_id: int, db: Session = Depends(get_db)):
+    """
+    Generate and download a YOLO dataset ZIP file for the specified video.
+    """
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Get video name for the filename
+    video_name = Path(video.file_name).stem
+
+    try:
+        # Generate the YOLO dataset ZIP file
+        zip_path = create_yolo_dataset_zip(video_id, db)
+
+        if not zip_path or not os.path.exists(zip_path):
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to generate YOLO dataset"
+            )
+
+        # Return the file as a download with appropriate filename
+        return FileResponse(
+            path=zip_path,
+            filename=f"{video_name}_yolo_dataset.zip",
+            media_type="application/zip"
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to generate YOLO dataset: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate YOLO dataset: {str(e)}"
+        )
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)
