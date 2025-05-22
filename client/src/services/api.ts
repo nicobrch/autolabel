@@ -10,7 +10,7 @@ export function getVideoUrl(fileName: string): string {
 
 export function getVideoInferenceUrl(fileName: string): string {
   const videoName = getFileNameWithoutExtension(fileName);
-  return `${publicUrl}/${videoName}/inference/${fileName}`;
+  return `${publicUrl}/${videoName}/inference/${videoName}_inference.mp4`;
 }
 
 export function getThumbnailFrameUrl(fileName: string): string {
