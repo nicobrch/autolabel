@@ -8,6 +8,8 @@ import logging
 import shutil
 import datetime  # Add this import
 import yaml  # Add this import for YAML handling
+import tempfile  # Add this import for temporary directory
+import zipfile   # Add this import for ZIP creation
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 from sqlalchemy.orm import Session
@@ -784,3 +786,98 @@ def create_yolo_data_yaml(objects: list, output_dir: Path) -> None:
         logger.info(f"Created YOLO data.yml file at {yaml_file}")
     except Exception as e:
         logger.error(f"Error creating YOLO data.yml file: {e}")
+
+
+def create_yolo_dataset_zip(video_id: int, db: Session = next(get_db())) -> Optional[str]:
+    """
+    Create a ZIP archive containing YOLO-formatted dataset for a video.
+
+    The ZIP contains:
+    - images/: All base frames with video_name prepended
+    - labels/: All YOLO annotations with video_name prepended
+    - data.yml: Class mapping file
+
+    Args:
+        video_id: ID of the video
+        db: Database session
+
+    Returns:
+        Path to the created ZIP file or None if failed
+    """
+    try:
+        # Get the video from database
+        video = db.query(Video).filter_by(id=video_id).first()
+        if not video:
+            logger.error(f"Video with ID {video_id} not found in database")
+            return None
+
+        video_name = Path(video.file_path).stem
+
+        # Get paths to directories
+        base_frames_dir = public_frames_base_dir_with_video_name(video_name)
+        yolo_dir = public_yolo_dir_with_video_name(video_name)
+
+        # Check if directories exist
+        if not base_frames_dir.exists() or not yolo_dir.exists():
+            logger.error(
+                f"Required directories not found for video {video_name}")
+            return None
+
+        # Create a temporary directory for preparing the ZIP contents
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+
+            # Create subdirectories
+            images_dir = temp_dir_path / "images"
+            labels_dir = temp_dir_path / "labels"
+            images_dir.mkdir()
+            labels_dir.mkdir()
+
+            # Copy and rename image files
+            base_frames = get_frames_list(base_frames_dir)
+            for frame in base_frames:
+                new_name = f"{video_name}_{frame.name}"
+                shutil.copy(frame, images_dir / new_name)
+
+            # Copy and rename label files
+            for txt_file in yolo_dir.glob("*.txt"):
+                # Skip data.yml
+                if txt_file.name == "data.yml":
+                    continue
+                new_name = f"{video_name}_{txt_file.name}"
+                shutil.copy(txt_file, labels_dir / new_name)
+
+            # Copy data.yml to the root of the temp directory
+            data_yml_path = yolo_dir / "data.yml"
+            if data_yml_path.exists():
+                shutil.copy(data_yml_path, temp_dir_path)
+            else:
+                logger.warning(
+                    f"data.yml not found in {yolo_dir}, creating a default one")
+                # If data.yml doesn't exist, try to create one based on the objects
+                objects = db.query(Object).filter_by(video_id=video_id).all()
+                create_yolo_data_yaml(objects, temp_dir_path)
+
+            # Create ZIP file
+            zip_path = yolo_dir / f"{video_name}_yolo.zip"
+
+            # Remove existing ZIP if it exists
+            if zip_path.exists():
+                zip_path.unlink()
+
+            # Use zipfile to create the archive
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                # Add all files from temp directory to the ZIP
+                for root, _, files in os.walk(temp_dir_path):
+                    for file in files:
+                        file_path = Path(root) / file
+                        # Get relative path to maintain directory structure
+                        rel_path = file_path.relative_to(temp_dir_path)
+                        zipf.write(file_path, rel_path)
+
+            logger.info(f"Created YOLO dataset ZIP at {zip_path}")
+            return str(zip_path)
+
+    except Exception as e:
+        logger.error(f"Error creating YOLO dataset ZIP: {e}")
+        return None
