@@ -6,12 +6,13 @@ import pickle
 import cv2
 import logging
 import shutil
+import datetime  # Add this import
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import exists
 from db import get_db
-from models import Object, Point, Frame, Mask, Video
+from models import Object, Point, Frame, Mask, Video, VideoInference
 
 # Configure logging
 logging.basicConfig(
@@ -23,6 +24,30 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+
+def public_videos_dir_with_video_name(video_name: str) -> Path:
+    return Path(f"public/videos/{video_name}")
+
+
+def public_frames_base_dir_with_video_name(video_name: str) -> Path:
+    return Path(f"public/videos/{video_name}/base")
+
+
+def public_frames_inference_dir_with_video_name(video_name: str) -> Path:
+    return Path(f"public/videos/{video_name}/inference")
+
+
+def public_video_thumbnail_dir_with_video_name(video_name: str) -> Path:
+    return Path(f"public/videos/{video_name}/thumbnail")
+
+
+def public_coco_dir_with_video_name(video_name: str) -> Path:
+    return Path(f"public/videos/{video_name}/coco")
+
+
+def public_yolo_dir_with_video_name(video_name: str) -> Path:
+    return Path(f"public/videos/{video_name}/yolo")
 
 
 def time_to_seconds(time_str: str) -> float:
@@ -152,18 +177,16 @@ def get_frames_list(frames_dir: Union[str, Path]) -> List[Path]:
     return frames
 
 
-def extract_frames_at_frame_step(
+def extract_frames_at_fps(
     video_path: str,
-    frame_step: int,
     db: Session = next(get_db())
 ) -> Optional[Path]:
     """
-    Extract frames from a video at a specified frame step using ffmpeg.
+    Extract frames from a video using the fps stored in the database.
     Saves all frames to the filesystem but only adds the first frame to the database.
 
     Args:
         video_path: Path to the video file
-        frame_step: Step size for frame extraction
         db: Database session
 
     Returns:
@@ -184,22 +207,19 @@ def extract_frames_at_frame_step(
         logger.error(f"Video '{video_path_str}' not found in database")
         raise ValueError(f"Video '{video_path_str}' not found in database.")
 
+    video_name = Path(video.file_name).stem
+
     # Create base frames directory if it doesn't exist
-    base_frames_dir = Path("data/frames")
+    base_frames_dir = public_frames_base_dir_with_video_name(
+        video_name=video_name)
     base_frames_dir.mkdir(exist_ok=True)
 
-    # Create video frames directory if it doesn't exist
-    video_name = Path(video_path_str).stem
-    frames_dir = base_frames_dir / video_name / \
-        "original"  # e.g. "data/frames/video_name/original"
-    frames_dir.mkdir(parents=True, exist_ok=True)
-
-    inference_frames_dir = base_frames_dir / video_name / \
-        "inference"  # e.g. "data/frames/video_name/inference"
-    inference_frames_dir.mkdir(parents=True, exist_ok=True)
+    thumbnail_dir = public_video_thumbnail_dir_with_video_name(
+        video_name=video_name)
+    thumbnail_dir.mkdir(parents=True, exist_ok=True)
 
     # Remove existing frames in the directory
-    for file in frames_dir.glob("*.jpg"):
+    for file in base_frames_dir.glob("*.jpg"):
         file.unlink()
 
     # Remove existing frames from the database, if any
@@ -208,38 +228,43 @@ def extract_frames_at_frame_step(
     db.refresh(video)
 
     try:
-        # Log extraction info
-        extraction_msg = f"Extracting frames from '{video_path_str}' with step {frame_step}"
-        logger.info(extraction_msg)
+        # Use the fps stored in the video object from the database
+        original_fps = video.fps
+        if original_fps <= 0:
+            logger.warning(
+                f"Invalid original FPS {original_fps}, defaulting to 15")
+            original_fps = 15
 
-        # Prepare ffmpeg command to extract frames
-        vf_option = f"select='not(mod(n,{frame_step}))'"
+        # Log extraction info
+        extraction_msg = f"Extracting frames from '{video_path_str}' at FPS {original_fps}"
+        logger.info(extraction_msg)
 
         cmd = [
             "ffmpeg",
             "-i", video_path_str,  # Use the string version here
-            "-vsync", "vfr",
-            "-vf", vf_option,
-            str(frames_dir / "%04d.jpg"),
+            "-vf", f"fps={original_fps}",
+            str(base_frames_dir / "%05d.jpg"),
+            "-loglevel", "error",
+            "-hide_banner",
         ]
 
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
 
         # Check if frames were extracted
-        if not any(frames_dir.glob("*.jpg")):
+        if not any(base_frames_dir.glob("*.jpg")):
             logger.error(
                 f"No frames were extracted from video '{video_path_str}'")
             raise ValueError(
                 f"No frames were extracted from video '{video_path_str}'.")
 
         # Get all extracted frames
-        frames = get_frames_list(frames_dir)
+        frames = get_frames_list(base_frames_dir)
 
         # Store only the first frame in the database
         if frames:
             first_frame = frames[0]
-            # Create a new Frame object for just the first frame - without frame_number parameter
+            # Create a new Frame object for just the first frame
             new_frame = Frame(
                 video_id=video.id,
                 file_path=str(first_frame)
@@ -252,20 +277,138 @@ def extract_frames_at_frame_step(
         # Copy the first frame to the inference directory using shutil
         if frames:
             first_frame_inference = frames[0]
-            inference_frame_path = inference_frames_dir / \
-                first_frame_inference.name
+            inference_frame_path = thumbnail_dir / "inference.jpg"
+            base_thumbnail_path = thumbnail_dir / "thumbnail.jpg"
             shutil.copy(str(first_frame_inference), str(inference_frame_path))
+            shutil.copy(str(first_frame_inference), str(base_thumbnail_path))
             logger.info(
-                f"Copied first frame to inference directory: {inference_frame_path}")
+                f"Copied first frame to inference directory: {inference_frame_path} and {base_thumbnail_path}")
 
-        # Log completion info
-        completion_msg = f"Extracted {len(frames)} frames from '{video_path_str}' to '{frames_dir}' (only first frame stored in DB)"
+        # Log completion info with FPS information
+        completion_msg = f"Extracted {len(frames)} frames from '{video_path_str}' to '{base_frames_dir}' (FPS: {original_fps})"
         logger.info(completion_msg)
 
-        return frames_dir
+        return base_frames_dir
 
     except (subprocess.SubprocessError, ValueError, KeyError) as e:
         logger.error(f"Error extracting frames: {e}")
+        return None
+
+
+def construct_video_from_inference_frames(video_id: int, model_name: str, db: Session = next(get_db())) -> Optional[str]:
+    """
+    Construct a video from the inference frames stored in the database.
+
+    Args:
+        video_id: ID of the video to construct
+        db: Database session
+
+    Returns:
+        Path to the constructed video file, or None if failed
+    """
+    # Get the video object
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        logger.error(f"Video with ID {video_id} not found")
+        return None
+
+    # Get all inference frames for this video
+    video_name = Path(video.file_name).stem
+    inference_frames_dir = public_frames_inference_dir_with_video_name(
+        video_name=video_name)
+    inference_frames = get_frames_list(inference_frames_dir)
+    if not inference_frames:
+        logger.error(
+            f"No inference frames found for video ID {video_id} in {inference_frames_dir}")
+        return None
+
+    # Construct the video using ffmpeg
+    output_video_path = inference_frames_dir / f"{video_name}_inference.mp4"
+
+    output_video_path = output_video_path.resolve()
+    if output_video_path.exists():
+        output_video_path.unlink()
+
+    logger.info(f"Constructing video at {output_video_path}")
+
+    # Prepare ffmpeg command
+    # Use the same FPS as the original video
+    fps = video.fps if video.fps > 0 else 24
+    cmd = [
+        "ffmpeg",
+        "-framerate", str(fps),
+        "-i", str(inference_frames_dir / "%05d.jpg"),
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        str(output_video_path)
+    ]
+
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
+        logger.info(f"Constructed video at {output_video_path}")
+
+        # Get a fresh DB session
+        db = next(get_db())
+
+        # Check if a video with this file path already exists
+        existing_video = db.query(Video).filter(
+            Video.file_path == str(output_video_path)).first()
+
+        if existing_video:
+            # Update the existing video entry
+            existing_video.file_size = os.path.getsize(output_video_path)
+            existing_video.updated_at = datetime.datetime.utcnow()
+            db.commit()
+            inference_video_id = existing_video.id
+            logger.info(
+                f"Updated existing inference video with ID {inference_video_id}")
+        else:
+            # Create a new video entry in the database
+            new_video = Video(
+                project_id=video.project_id,
+                file_path=str(output_video_path),
+                file_name=output_video_path.name,
+                file_size=os.path.getsize(output_video_path),
+                width=video.width,
+                height=video.height,
+                fps=video.fps,
+                duration=video.duration
+            )
+            db.add(new_video)
+            db.commit()
+            db.refresh(new_video)
+            inference_video_id = new_video.id
+            logger.info(
+                f"Created new inference video with ID {inference_video_id}")
+
+        # Check if a VideoInference entry already exists
+        existing_inference = db.query(VideoInference).filter(
+            VideoInference.base_video_id == video.id
+        ).first()
+
+        if existing_inference:
+            # Update the existing VideoInference entry
+            existing_inference.inference_video_id = inference_video_id
+            existing_inference.model_name = model_name
+            db.commit()
+            logger.info(
+                f"Updated existing VideoInference entry for video ID {video.id}")
+        else:
+            # Create a new VideoInference entry
+            video_inference = VideoInference(
+                base_video_id=video.id,
+                inference_video_id=inference_video_id,
+                model_name=model_name
+            )
+            db.add(video_inference)
+            db.commit()
+            logger.info(
+                f"Created new VideoInference entry for video ID {video.id}")
+
+        return str(output_video_path)
+    except subprocess.SubprocessError as e:
+        logger.error(f"Error constructing video: {e}")
         return None
 
 
@@ -407,11 +550,12 @@ def draw_objects_masks_on_frame(
 
     # Construct paths
     frame_path = Path(frame.file_path)
-    frames_dir = frame_path.parent  # Original frames directory
-    # Parent dir with both original and inference
-    video_frames_dir = frames_dir.parent
-    inference_dir = video_frames_dir / "inference"
-    inference_dir.mkdir(exist_ok=True)
+    if not frame_path.exists():
+        raise FileNotFoundError(f"Frame file '{frame_path}' not found")
+
+    video_name = Path(video.file_name).stem
+    thumbnail_dir = public_video_thumbnail_dir_with_video_name(
+        video_name=video_name)
 
     # Load the first frame
     frame_img = cv2.imread(str(frame_path))
@@ -451,7 +595,7 @@ def draw_objects_masks_on_frame(
         cv2.addWeighted(color_mask, 0.5, overlay, 1, 0, overlay)
 
     # Save the inference image
-    inference_path = inference_dir / frame_path.name
+    inference_path = thumbnail_dir / "inference.jpg"
     cv2.imwrite(str(inference_path), overlay)
     logger.info(f"Saved inference image with masks at {inference_path}")
 
@@ -513,7 +657,7 @@ def sqlalchemy_to_dict(obj: Any) -> dict:
     return result
 
 
-# Function to create a random color string in hex format using numpy
+# Function to create a random color in hex format using numpy
 def random_color() -> str:
     """
     Generate a random color in hex format.
