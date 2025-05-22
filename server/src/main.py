@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from db import get_db, init_db
+from db import get_db
 from models import Project, Video, Object, Point
-from utils import logger, extract_video_metadata, extract_frames_at_frame_step, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame
+from utils import logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
 from inference import InferenceAPI
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,8 +35,7 @@ app.add_middleware(
 )
 
 # Mount static files directories
-app.mount("/videos", StaticFiles(directory=abspath("videos")), name="videos")
-app.mount("/data", StaticFiles(directory=abspath("data")), name="data")
+app.mount("/public", StaticFiles(directory=abspath("public")), name="public")
 
 
 @app.get("/api/v1/")
@@ -109,8 +108,8 @@ async def upload_video(
                             description="Project ID to associate with this video"),
     resolution: Optional[str] = Query(
         None, description="Resolution to resize the video, e.g., '1280x720'"),
-    frame_step: Optional[int] = Query(
-        10, description="Frame skip value for video processing"),
+    target_fps: Optional[float] = Query(
+        None, description="Target frames per second for extraction"),
     db: Session = Depends(get_db)
 ):
     # Check if project exists
@@ -121,12 +120,20 @@ async def upload_video(
     if not file.content_type.startswith("video/"):
         raise HTTPException(status_code=400, detail="File must be a video")
 
-    # Create videos directory if it doesn't exist
-    videos_dir = Path("videos")
-    videos_dir.mkdir(exist_ok=True)
+    video_name = file.filename.split(".")[0]
+
+    single_video_dir = public_videos_dir_with_video_name(video_name)
+    single_video_dir.mkdir(parents=True, exist_ok=True)
+    base_frames_dir = public_frames_base_dir_with_video_name(video_name)
+    base_frames_dir.mkdir(parents=True, exist_ok=True)
+    inference_frames_dir = public_frames_inference_dir_with_video_name(
+        video_name)
+    inference_frames_dir.mkdir(parents=True, exist_ok=True)
+    thumbnail_dir = public_video_thumbnail_dir_with_video_name(video_name)
+    thumbnail_dir.mkdir(parents=True, exist_ok=True)
 
     # Save the original file temporarily
-    temp_file_path = videos_dir / f"temp_{file.filename}"
+    temp_file_path = thumbnail_dir / f"temp_{file.filename}"
     try:
         with open(temp_file_path, "wb") as buffer:
             contents = await file.read()
@@ -136,67 +143,71 @@ async def upload_video(
             status_code=500, detail=f"Failed to save video file: {e}")
 
     # Define the final file path
-    file_path = videos_dir / file.filename
+    video_path = base_frames_dir / file.filename
 
-    # Resize video if resolution is provided and not "Original"
-    if resolution and resolution.lower() != "original":
-        import re
-        if not re.match(r'^\d+x\d+$', resolution):
-            # Clean up temp file
-            if temp_file_path.exists():
-                temp_file_path.unlink()
-            raise HTTPException(
-                status_code=400, detail=f"Invalid resolution format: {resolution}. Must be 'WIDTHxHEIGHT'")
+    try:
+        # Base ffmpeg command
+        cmd = [
+            "ffmpeg",
+            "-i", str(temp_file_path),
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "23",
+            "-an",  # Remove audio track to save disk space
+        ]
 
-        try:
-            # Use ffmpeg to resize the video and remove audio track
-            cmd = [
-                "ffmpeg",
-                "-i", str(temp_file_path),
-                "-vf", f"scale={resolution}",
-                "-c:v", "libx264",
-                "-preset", "medium",
-                "-crf", "23",
-                "-an",  # Remove audio track to save disk space
-                str(file_path)
-            ]
+        # Add resolution parameter if provided
+        if resolution and resolution.lower() != "original":
+            import re
+            if not re.match(r'^\d+x\d+$', resolution):
+                # Clean up temp file
+                if temp_file_path.exists():
+                    temp_file_path.unlink()
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid resolution format: {resolution}. Must be 'WIDTHxHEIGHT'")
+            cmd.extend(["-vf", f"scale={resolution}"])
 
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE)
+        # Add fps parameter if provided
+        if target_fps:
+            cmd.extend(["-r", str(target_fps)])
 
-            # Delete temporary file after successful resize
-            if temp_file_path.exists():
-                temp_file_path.unlink()
+        # Output file
+        cmd.append(str(video_path))
 
-        except subprocess.SubprocessError as e:
-            # Clean up temp file if resize fails
-            if temp_file_path.exists():
-                temp_file_path.unlink()
-            raise HTTPException(
-                status_code=500, detail=f"Failed to resize video: {e}")
-    else:
-        # Just rename the temp file to the final file name if no resize needed
-        temp_file_path.rename(file_path)
+        # Execute ffmpeg command
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
+
+        # Delete temporary file after successful processing
+        if temp_file_path.exists():
+            temp_file_path.unlink()
+
+    except subprocess.SubprocessError as e:
+        # Clean up temp file if processing fails
+        if temp_file_path.exists():
+            temp_file_path.unlink()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to process video: {e}")
 
     # Extract metadata from the final video file
-    metadata = extract_video_metadata(file_path)
+    metadata = extract_video_metadata(video_path)
     if not metadata:
         # Clean up the saved file if metadata extraction fails
-        if file_path.exists():
-            file_path.unlink()
+        if video_path.exists():
+            video_path.unlink()
         raise HTTPException(
             status_code=500, detail="Failed to extract video metadata")
 
     width = metadata.get("width")
     height = metadata.get("height")
-    fps = metadata.get("fps")
+    fps = target_fps if target_fps else metadata.get("fps")
     duration = metadata.get("duration")
     file_size = metadata.get("file_size")
 
     # Create a new video entry in the database with metadata
     new_video = Video(
         project_id=project_id,
-        file_path=str(file_path),
+        file_path=str(video_path),  # Changed from video_path to file_path
         file_name=file.filename,
         file_size=file_size,
         width=width,
@@ -209,13 +220,13 @@ async def upload_video(
     db.refresh(new_video)
     logger.info(f"Video {file.filename} uploaded and metadata extracted.")
 
-    # Extract frames at the specified frame step
+    # Extract frames at the specified target FPS
     try:
-        extract_frames_at_frame_step(file_path, frame_step, db)
+        extract_frames_at_fps(video_path, db)
     except Exception as e:
         # Clean up the saved video file if frame extraction fails
-        if file_path.exists():
-            file_path.unlink()
+        if video_path.exists():
+            video_path.unlink()
         db.delete(new_video)
         db.commit()
         raise HTTPException(
@@ -235,7 +246,7 @@ async def get_frame_count(video_id: int, db: Session = Depends(get_db)):
     name = Path(video.file_path).stem
 
     # Check if frames are already extracted
-    frames_dir = Path("data/frames") / str(name) / "original"
+    frames_dir = public_frames_base_dir_with_video_name(name)
     print(f"Frames directory: {frames_dir}")
     if not frames_dir.exists():
         raise HTTPException(
@@ -379,13 +390,14 @@ async def label_frame(
             status_code=500, detail=f"Failed to create point: {str(e)}")
 
     # Validate frames directory
-    frames_dir = Path("data/frames") / Path(video.file_path).stem / "original"
-    if not frames_dir.exists():
+    video_name = Path(video.file_path).stem
+    base_frames_dir = public_frames_base_dir_with_video_name(video_name)
+    if not base_frames_dir.exists():
         raise HTTPException(
             status_code=404, detail="Frames directory not found")
 
     # Count available frames
-    available_frames = sorted(list(frames_dir.glob("*.jpg")))
+    available_frames = sorted(list(base_frames_dir.glob("*.jpg")))
     if not available_frames:
         raise HTTPException(
             status_code=404, detail="No frames found for this video")
@@ -393,7 +405,7 @@ async def label_frame(
     try:
         # Initialize SAM2 Inference API with specified checkpoint
         inference_api = InferenceAPI(checkpoint=checkpoint)
-        inference_api.initialize_state(frames_dir=frames_dir)
+        inference_api.initialize_state(frames_dir=base_frames_dir)
 
         # Segment object using the newly created point
         try:
@@ -416,8 +428,9 @@ async def label_frame(
 
         # Draw the segmentation masks on the frame
         try:
-            inference_image_path = draw_objects_masks_on_frame(video_id, db=db)
-            visualization_url = str(inference_image_path)
+            inference_thumbnail_path = draw_objects_masks_on_frame(
+                video_id, db=db)
+            visualization_url = str(inference_thumbnail_path)
             return {
                 "status": "success",
                 "objects": result_objects,
@@ -484,5 +497,4 @@ async def propagate_video(
 
 
 if __name__ == "__main__":
-    uvicorn.run("__main__:app", host="0.0.0.0",
-                port=8000, reload=True, workers=2)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
