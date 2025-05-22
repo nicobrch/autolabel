@@ -18,9 +18,10 @@ import { toast } from "sonner";
 
 export default function VideoLabeling() {
   const { videoId } = useParams<{ videoId: string }>();
+  const { projectId } = useParams<{ projectId: string }>();
   const queryClient = useQueryClient();
 
-  const [modelCheckpoint, setModelCheckpoint] = useState("small");
+  const [modelCheckpoint, setModelCheckpoint] = useState("tiny");
   const [selectedObject, setSelectedObject] = useState<string>("");
   const [pointType, setPointType] = useState("positive");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -266,6 +267,7 @@ export default function VideoLabeling() {
             onModelCheckpointChange={setModelCheckpoint}
             onLabelVideo={handleLabelVideo}
             videoId={videoId || ""}
+            projectId={projectId || ""}
           />
 
           <LabelingOptions

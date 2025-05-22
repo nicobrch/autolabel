@@ -20,6 +20,7 @@ interface InferenceSettingsProps {
   onModelCheckpointChange: (value: string) => void;
   onLabelVideo: () => void;
   videoId: string;
+  projectId: string;
 }
 
 export function InferenceSettings({
@@ -27,6 +28,7 @@ export function InferenceSettings({
   onModelCheckpointChange,
   onLabelVideo,
   videoId,
+  projectId,
 }: InferenceSettingsProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
@@ -59,7 +61,7 @@ export function InferenceSettings({
       });
 
       // Redirect to the labeled preview page
-      navigate(`/videos/${result.video_id}/preview`);
+      navigate(`/projects/${projectId}/download/${result.video_id}`);
     } catch (error) {
       console.error("Failed to propagate video:", error);
 
