@@ -7,8 +7,6 @@ __pycache__
 .env
 .env.local
 
-*.mp4
 *.db
-*.jpg
-
 *.log
+src/public/*
