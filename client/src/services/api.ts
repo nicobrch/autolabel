@@ -1,24 +1,26 @@
 import { getFileNameWithoutExtension } from "@/lib/utils";
 
-const apiUrl = "http://localhost:8000/api/v1";
-const videoUrl = "http://localhost:8000/videos";
-const dataUrl = "http://localhost:8000/data";
+const apiUrl = "http://localhost:8001/api/v1";
+const publicUrl = "http://localhost:8001/public/videos";
 
 export function getVideoUrl(fileName: string): string {
-  return `${videoUrl}/${fileName}`;
+  const videoName = getFileNameWithoutExtension(fileName);
+  return `${publicUrl}/${videoName}/base/${fileName}`;
 }
 
-export function getFirstFrameUrl(fileName: string): string {
-  return `${dataUrl}/frames/${getFileNameWithoutExtension(
-    fileName,
-  )}/original/0001.jpg`;
+export function getVideoInferenceUrl(fileName: string): string {
+  const videoName = getFileNameWithoutExtension(fileName);
+  return `${publicUrl}/${videoName}/inference/${fileName}`;
 }
 
-export function getFirstInferenceFrameUrl(fileName: string): string {
-  const baseUrl = `${dataUrl}/frames/${getFileNameWithoutExtension(
-    fileName,
-  )}/inference/0001.jpg`;
+export function getThumbnailFrameUrl(fileName: string): string {
+  const videoName = getFileNameWithoutExtension(fileName);
+  return `${publicUrl}/${videoName}/thumbnail/thumbnail.jpg`;
+}
 
+export function getInferenceThumbnailUrl(fileName: string): string {
+  const videoName = getFileNameWithoutExtension(fileName);
+  const baseUrl = `${publicUrl}/${videoName}/thumbnail/inference.jpg`;
   // Add a timestamp to prevent browser caching
   const timestamp = new Date().getTime();
   return `${baseUrl}?t=${timestamp}`;
@@ -130,7 +132,7 @@ export async function uploadVideoFile(
   videoId: number,
   file: File,
   resolution?: string,
-  frameSkip?: number,
+  fps?: number,
 ): Promise<Video> {
   const formData = new FormData();
   formData.append("file", file);
@@ -139,8 +141,8 @@ export async function uploadVideoFile(
   if (resolution) {
     url += `&resolution=${encodeURIComponent(resolution)}`;
   }
-  if (frameSkip !== undefined) {
-    url += `&frame_step=${frameSkip}`;
+  if (fps !== undefined) {
+    url += `&target_fps=${fps}`;
   }
 
   const response = await fetch(url, {

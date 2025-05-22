@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchVideoFrameCount,
   fetchVideoById,
-  getFirstInferenceFrameUrl,
+  getInferenceThumbnailUrl,
   fetchVideoObjects,
   labelVideoFrame,
 } from "@/services/api";
@@ -79,7 +79,7 @@ export default function VideoLabeling() {
     queryFn: () => {
       if (!videoId || !videoData) return null;
       // Return the URL directly rather than fetching it - we just need the URL for the image
-      return getFirstInferenceFrameUrl(videoData.file_name);
+      return getInferenceThumbnailUrl(videoData.file_name);
     },
     enabled: !!videoId && !!videoData,
     staleTime: 0, // Consider data as stale immediately so it will refetch after revalidation
@@ -92,7 +92,7 @@ export default function VideoLabeling() {
   const displayImageUrl =
     inferenceFrameUrl ||
     (videoData
-      ? getFirstInferenceFrameUrl(videoData.file_name)
+      ? getInferenceThumbnailUrl(videoData.file_name)
       : "/placeholder.svg?height=720&width=1280");
 
   // Create a unique key that changes when the frame should be refreshed
