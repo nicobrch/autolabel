@@ -10,8 +10,10 @@ import {
   fetchVideoById,
   getVideoInferenceUrl,
   getInferenceThumbnailUrl,
+  downloadYoloDataset,
 } from "@/services/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export default function VideoLabeledPreview() {
   let { videoId } = useParams();
@@ -27,6 +29,29 @@ export default function VideoLabeledPreview() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
+
+  // Create a mutation for downloading YOLO dataset
+  const downloadYoloMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoId) throw new Error("Video ID is required");
+      return await downloadYoloDataset(videoId);
+    },
+    onError: (error) => {
+      toast.error("Download error", {
+        description: `Download failed ${error} Please try again.`,
+      });
+    },
+  });
+
+  const handleDownloadYolo = () => {
+    if (!videoId) {
+      toast.error("Video ID missing", {
+        description: "Video ID is missing. Please try again.",
+      });
+      return;
+    }
+    downloadYoloMutation.mutate();
+  };
 
   return (
     <div className="flex flex-col w-full p-4">
@@ -77,9 +102,15 @@ export default function VideoLabeledPreview() {
                   <Nut className="h-4 w-4 mr-2" />
                   Download COCO labels
                 </Button>
-                <Button className="w-full">
+                <Button
+                  className="w-full"
+                  onClick={handleDownloadYolo}
+                  disabled={downloadYoloMutation.isPending || !videoId}
+                >
                   <Download className="h-4 w-4 mr-2" />
-                  Download YOLO labels
+                  {downloadYoloMutation.isPending
+                    ? "Downloading..."
+                    : "Download YOLO labels"}
                 </Button>
               </div>
 

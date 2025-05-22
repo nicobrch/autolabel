@@ -375,3 +375,40 @@ export async function propagateVideo(
 
   return response.json();
 }
+
+/**
+ * Requests the server to generate and then download a YOLO dataset ZIP file
+ * @returns A promise that resolves when the ZIP file is ready for download
+ */
+export async function prepareYoloDatasetDownload(
+  videoId: string,
+): Promise<boolean> {
+  try {
+    // First make a HEAD request to check if the endpoint is ready
+    const checkResponse = await fetch(
+      `${apiUrl}/videos/${videoId}/download-yolo-dataset`,
+      {
+        method: "HEAD",
+      },
+    );
+
+    if (!checkResponse.ok) {
+      throw new Error(`Server not ready: ${checkResponse.status}`);
+    }
+
+    // If HEAD request is successful, trigger the download
+    downloadYoloDataset(videoId);
+    return true;
+  } catch (error) {
+    console.error("Error preparing YOLO dataset download:", error);
+    throw error;
+  }
+}
+
+/**
+ * Initiates a download of the YOLO dataset for the specified video
+ */
+export function downloadYoloDataset(videoId: string): void {
+  // Using window.open to trigger a file download in a new tab
+  window.open(`${apiUrl}/videos/${videoId}/download-yolo-dataset`, "_blank");
+}
