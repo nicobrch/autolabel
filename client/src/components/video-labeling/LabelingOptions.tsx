@@ -12,10 +12,12 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TypographyH4 } from "@/components/typography/typography";
 import { Plus, Undo2, Eraser, Pen } from "lucide-react";
-import { VideoObject } from "@/services/api";
+import { VideoObject, deleteLastPoint } from "@/services/api";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { CreateObjectForm } from "@/components/video-labeling/CreateObjectForm";
 import { EditObjectForm } from "@/components/video-labeling/EditObjectForm";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface LabelingOptionsProps {
   selectedObject: string;
@@ -39,10 +41,38 @@ export function LabelingOptions({
 }: LabelingOptionsProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUndoLoading, setIsUndoLoading] = useState(false);
+  const queryClient = useQueryClient();
 
   const selectedObjectData = selectedObject
     ? videoObjects.find((obj) => obj.id.toString() === selectedObject)
     : undefined;
+
+  const handleUndoLastPoint = async () => {
+    if (!selectedObject) return;
+
+    setIsUndoLoading(true);
+    try {
+      await deleteLastPoint(videoId, selectedObject);
+      // Invalidate queries to refresh UI
+      queryClient.invalidateQueries({ queryKey: ["videoObjects", videoId] });
+      // Also invalidate any inference frame data
+      queryClient.invalidateQueries({ queryKey: ["inferenceFrame", videoId] });
+
+      toast.info("Success", {
+        description: "Last point removed successfully",
+      });
+    } catch (error) {
+      toast.error("Error", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to remove last point",
+      });
+    } finally {
+      setIsUndoLoading(false);
+    }
+  };
 
   return (
     <Card>
@@ -159,7 +189,11 @@ export function LabelingOptions({
         <div className="space-y-4">
           <Label>Modify Segmentation Points</Label>
           <div className="flex flex-1 items-center space-x-2">
-            <Button variant="default">
+            <Button
+              variant="default"
+              onClick={handleUndoLastPoint}
+              disabled={!selectedObject || isUndoLoading}
+            >
               <Undo2 className="h-4 w-4 mr-2" />
               Undo Last
             </Button>

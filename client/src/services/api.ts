@@ -412,3 +412,28 @@ export function downloadYoloDataset(videoId: string): void {
   // Using window.open to trigger a file download in a new tab
   window.open(`${apiUrl}/videos/${videoId}/download-yolo-dataset`, "_blank");
 }
+
+/**
+ * Deletes the last point added to the specified object
+ */
+export async function deleteLastPoint(
+  videoId: string,
+  objectId: string,
+): Promise<{ status: string; message: string }> {
+  const response = await fetch(
+    `${apiUrl}/videos/${videoId}/objects/${objectId}/points`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(
+      errorData?.detail ||
+        `Failed to delete last point (status: ${response.status})`,
+    );
+  }
+
+  return response.json();
+}
