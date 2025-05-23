@@ -522,14 +522,14 @@ def draw_objects_masks_on_frame(
     db: Session = next(get_db())
 ) -> str:
     """
-    Draw all object masks for the given video frame.
+    Draw all object masks and points for the given video frame.
 
     Args:
         video_id: ID of the video
         db: Database session
 
     Returns:
-        Path to the inference image with masks
+        Path to the inference image with masks and points
     """
     # Check if video exists
     video = db.query(Video).filter(Video.id == video_id).first()
@@ -598,10 +598,22 @@ def draw_objects_masks_on_frame(
         # Overlay with transparency
         cv2.addWeighted(color_mask, 0.5, overlay, 1, 0, overlay)
 
+        # Get all points for this object
+        points = db.query(Point).filter(Point.object_id == obj.id).all()
+
+        # Draw points on the overlay
+        for point in points:
+            # Green for positive points (label=1), Red for negative points (label=0)
+            point_color = (0, 255, 0) if point.label == 1 else (0, 0, 255)
+
+            # Draw a filled circle for each point
+            cv2.circle(overlay, (point.x, point.y), 2, point_color, -1)
+
     # Save the inference image
     inference_path = thumbnail_dir / "inference.jpg"
     cv2.imwrite(str(inference_path), overlay)
-    logger.info(f"Saved inference image with masks at {inference_path}")
+    logger.info(
+        f"Saved inference image with masks and points at {inference_path}")
 
     return str(inference_path)
 
