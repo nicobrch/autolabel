@@ -13,7 +13,7 @@ import {
   labelVideoFrame,
 } from "@/services/api";
 import { ErrorMessage } from "@/components/ui/errormsg";
-import LoadingSpinner from "@/components/ui/loading-spinner";
+import { LoadingFrameSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 
 export default function VideoLabeling() {
@@ -227,27 +227,12 @@ export default function VideoLabeling() {
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1">
           {isPending && !isProcessing ? (
-            <div className="flex items-center justify-center h-[720px] bg-muted">
-              <LoadingSpinner />
-              <span className="ml-2">Loading video frames...</span>
+            <div className="flex items-center justify-center h-[720px] bg-muted relative">
+              <LoadingFrameSpinner />
             </div>
           ) : error ? (
             <div className="flex items-center justify-center h-[720px] bg-muted">
               <ErrorMessage error={(error as Error).message} />
-            </div>
-          ) : isProcessing ? (
-            <div className="flex items-center justify-center h-[720px] bg-muted relative">
-              <img
-                src={displayImageUrl}
-                alt="Video frame"
-                className="max-w-full max-h-full opacity-50"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <LoadingSpinner />
-                <span className="ml-2 font-semibold text-lg">
-                  Processing frame...
-                </span>
-              </div>
             </div>
           ) : (
             <VideoDisplay
@@ -257,6 +242,7 @@ export default function VideoLabeling() {
               currentFrame={currentFrame}
               totalFrames={totalFrames}
               hasSelectedObject={!!selectedObject}
+              isProcessing={isProcessing}
             />
           )}
         </div>
@@ -278,6 +264,8 @@ export default function VideoLabeling() {
             videoObjects={objectsData || []}
             isLoading={isObjectsPending}
             videoId={videoId || ""}
+            checkpoint={modelCheckpoint}
+            setIsVideoProcessing={setIsProcessing}
           />
         </div>
       </div>

@@ -8,7 +8,7 @@ import { useParams } from "react-router";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { UploadVideoForm } from "@/components/videos/UploadVideoForm";
 import { Upload } from "lucide-react";
-import LoadingSpinner from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ContentHeader } from "@/components/layout/ContentHeader";
 
 export default function ProjectManager() {

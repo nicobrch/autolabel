@@ -1,5 +1,6 @@
 import { MouseEvent, useEffect, useState } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { LoadingFrameSpinner } from "../ui/loading-spinner";
 
 interface VideoDisplayProps {
   imageUrl: string;
@@ -7,6 +8,7 @@ interface VideoDisplayProps {
   currentFrame: number;
   totalFrames: number;
   hasSelectedObject?: boolean;
+  isProcessing?: boolean;
 }
 
 export function VideoDisplay({
@@ -15,6 +17,7 @@ export function VideoDisplay({
   currentFrame,
   totalFrames,
   hasSelectedObject = false,
+  isProcessing = false,
 }: VideoDisplayProps) {
   // State to store the cache-busting URL
   const [cacheBustedUrl, setCacheBustedUrl] = useState("");
@@ -41,6 +44,7 @@ export function VideoDisplay({
         }`}
         onClick={onImageClick}
       />
+      {isProcessing && <LoadingFrameSpinner text="Processing frame..." />}
       <div className="absolute bottom-4 left-4 bg-accent px-3 py-1 rounded-md text-sm opacity-100 hover:opacity-0 transition-opacity duration-300">
         Frame: {currentFrame}/{totalFrames}
       </div>

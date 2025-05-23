@@ -7,7 +7,7 @@ import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { useState } from "react";
-import LoadingSpinner from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ContentHeader } from "@/components/layout/ContentHeader";
 
 export default function Dashboard() {
