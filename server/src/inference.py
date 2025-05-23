@@ -111,10 +111,32 @@ class InferenceAPI:
             raise ValueError(
                 f"Object with ID {object_id} not found in database.")
 
+        # Check if mask already exists and update it, or create new one
+        existing_mask = db.query(Mask).filter_by(
+            object_id=object_id).first()
+
         # Get all points for this object
         points = db.query(Point).filter_by(object_id=object_id).all()
         if not points:
-            raise ValueError(f"No points found for object ID {object_id}.")
+            # If no points are found, save the mask as empty. This is a special case when removing points and want to segment the frame.
+            logger.warning(
+                f"No points found for object ID {object_id}, saving empty mask")
+            mask = np.zeros((1, 1), dtype=np.uint8)
+            mask_blob = serialize_mask(mask)
+            if existing_mask:
+                existing_mask.mask = mask_blob
+                logger.info(
+                    f"Updated existing mask for object {object_id}, first frame")
+            else:
+                new_mask = Mask(
+                    object_id=object_id,
+                    mask=mask_blob
+                )
+                db.add(new_mask)
+                logger.info(
+                    f"Created new mask for object {object_id}, first frame")
+            db.commit()
+            return mask
 
         # Get the first frame for this video (we only store one frame)
         current_frame = db.query(Frame).filter_by(
@@ -143,10 +165,6 @@ class InferenceAPI:
         # Create mask and save to database
         mask = (out_mask_logits[0] > 0.0).cpu().numpy().squeeze()
         mask_blob = serialize_mask(mask)
-
-        # Check if mask already exists and update it, or create new one
-        existing_mask = db.query(Mask).filter_by(
-            object_id=object_id).first()
 
         if existing_mask:
             existing_mask.mask = mask_blob

@@ -507,6 +507,8 @@ async def propagate_video(
 async def remove_last_point(
     video_id: int,
     object_id: int,
+    checkpoint: str = Body(
+        "small", description="SAM2 model checkpoint to use (tiny, small, base-plus, large)"),
     db: Session = Depends(get_db)
 ):
     # Check if video exists
@@ -536,6 +538,20 @@ async def remove_last_point(
     else:
         raise HTTPException(
             status_code=404, detail="No points found for this object")
+
+    # Before drawing the masks on the frame, make the inference again with the left points
+    try:
+        inference_api = InferenceAPI(checkpoint=checkpoint)
+        video_name = Path(video.file_path).stem
+        inference_api.initialize_state(
+            frames_dir=public_frames_base_dir_with_video_name(video_name))
+        inference_api.segment_object(object_id, db=db)
+    except Exception as e:
+        logger.error(f"Failed to re-segment object {object_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to re-segment object {object_id}: {str(e)}"
+        )
 
     # Draw the updated segmentation masks on the frame
     try:
