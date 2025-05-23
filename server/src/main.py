@@ -502,7 +502,55 @@ async def propagate_video(
         )
 
 
-# Add this endpoint to your main.py file
+# Endpoint to remove the last point from an object and run the inference again
+@app.delete("/api/v1/videos/{video_id}/objects/{object_id}/points", response_model=dict)
+async def remove_last_point(
+    video_id: int,
+    object_id: int,
+    db: Session = Depends(get_db)
+):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Check if object exists
+    obj = db.query(Object).filter(Object.id == object_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Object not found")
+
+    # Validate that object belongs to this video
+    if obj.video_id != video_id:
+        raise HTTPException(
+            status_code=400, detail="Object does not belong to this video")
+
+    # Remove the last point from the object
+    last_point = db.query(Point).filter(
+        Point.object_id == object_id).order_by(Point.id.desc()).first()
+
+    if last_point:
+        db.delete(last_point)
+        db.commit()
+        logger.info(
+            f"Removed last point {last_point.id} from object {object_id}")
+    else:
+        raise HTTPException(
+            status_code=404, detail="No points found for this object")
+
+    # Draw the updated segmentation masks on the frame
+    try:
+        draw_objects_masks_on_frame(video_id, db=db)
+    except Exception as e:
+        logger.error(f"Failed to draw updated masks on frame: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to draw updated masks on frame: {str(e)}"
+        )
+
+    return {"status": "success", "message": "Last point removed successfully"}
+
+
+# Endpoint to download the YOLO dataset ZIP file
 @app.get("/api/v1/videos/{video_id}/download-yolo-dataset", response_class=FileResponse)
 async def download_yolo_dataset(video_id: int, db: Session = Depends(get_db)):
     """
