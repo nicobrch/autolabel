@@ -7,6 +7,7 @@ import {
   Clock,
   Save,
   Proportions,
+  Trash2,
 } from "lucide-react";
 import { formatDuration, formatFileSize } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
@@ -14,6 +15,8 @@ import { TypographyH4, TypographySmall } from "../typography/typography";
 import { NavLink } from "react-router";
 import { getFileNameWithoutExtension } from "@/lib/utils";
 import { useParams } from "react-router";
+import { useState } from "react";
+import { DeleteVideoDialog } from "./DeleteVideoDialog";
 
 interface VideoCardProps {
   id: string | number;
@@ -37,6 +40,7 @@ export function VideoCard({
   firstFramePath,
 }: VideoCardProps) {
   const { projectId } = useParams<{ projectId: string }>();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   return (
     <Card className="group overflow-hidden p-0 transition-all duration-300 hover:shadow-md">
@@ -54,9 +58,24 @@ export function VideoCard({
         />
       </div>
 
-      <CardTitle className="px-4">
+      <CardTitle className="flex justify-between px-4">
         <TypographyH4>{getFileNameWithoutExtension(name)}</TypographyH4>
+        <button
+          className="hover:text-destructive/80 text-destructive/50 transform hover:scale-105 transition-all duration-300"
+          onClick={() => setIsDeleteDialogOpen(true)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </CardTitle>
+
+      {/* Delete Video Dialog */}
+      <DeleteVideoDialog
+        videoId={id}
+        videoName={name}
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        projectId={projectId}
+      />
 
       <CardContent className="flex flex-col space-y-2 -mt-2">
         <div className="flex justify-between">
