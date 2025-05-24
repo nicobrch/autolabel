@@ -441,3 +441,34 @@ export async function deleteLastPoint(
 
   return response.json();
 }
+
+export interface InferenceResults {
+  original_video: string;
+  inference_video: string;
+  model_checkpoint: string;
+  fps: number;
+  frame_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchInferenceResults(
+  videoId: string,
+): Promise<InferenceResults> {
+  const response = await fetch(`${apiUrl}/videos/${videoId}/inference_results`);
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error("Fetch inference results error:", errorData);
+    throw new Error(
+      `HTTP error! status: ${response.status} - Failed to fetch inference results for video ${videoId}`,
+    );
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    console.error("Failed to parse inference results JSON:", e);
+    throw new Error("Received invalid data format from server.");
+  }
+}
