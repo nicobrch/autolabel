@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from db import get_db
-from models import Project, Video, Object, Point
+from models import Project, Video, Object, Point, VideoInference
 from utils import create_yolo_dataset_zip, logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
 from inference import InferenceAPI
 from fastapi import File, UploadFile
@@ -603,6 +603,53 @@ async def download_yolo_dataset(video_id: int, db: Session = Depends(get_db)):
             status_code=500,
             detail=f"Failed to generate YOLO dataset: {str(e)}"
         )
+
+
+# Endpoint to get the inference results (model checkpoint and dates) using the VideoInference model
+@app.get("/api/v1/videos/{video_id}/inference_results", response_model=dict)
+async def get_inference_results(video_id: int, db: Session = Depends(get_db)):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Get inference results from the VideoInference model
+    inference_results = db.query(VideoInference).filter(
+        VideoInference.base_video_id == video_id).first()
+    if not inference_results:
+        raise HTTPException(
+            status_code=404, detail="Inference results not found")
+
+    # Get video inference metadata from Video table
+    video_inference = db.query(Video).filter(
+        Video.id == inference_results.inference_video_id).first()
+    if not video_inference:
+        raise HTTPException(
+            status_code=404, detail="Inference video not found")
+
+    # Get the number of frames in the inference video
+    video_name = Path(video.file_name).stem
+    inference_frames_dir = public_frames_inference_dir_with_video_name(
+        video_name)
+
+    if not inference_frames_dir.exists():
+        raise HTTPException(
+            status_code=404, detail="Inference frames directory not found")
+
+    inference_frame_count = len(list(inference_frames_dir.glob("*.jpg")))
+    if inference_frame_count == 0:
+        raise HTTPException(
+            status_code=404, detail="No frames found in the inference video")
+
+    return {
+        "original_video": video.file_name,
+        "inference_video": video_inference.file_name,
+        "model_checkpoint": inference_results.model_name,
+        "fps": video_inference.fps,
+        "frame_count": inference_frame_count,
+        "created_at": inference_results.created_at.isoformat(),
+        "updated_at": inference_results.updated_at.isoformat(),
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)
