@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { formatDuration, formatFileSize } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
-import { TypographyH4 } from "../typography/typography";
+import { TypographyH4, TypographySmall } from "../typography/typography";
 import { NavLink } from "react-router";
 import { getFileNameWithoutExtension } from "@/lib/utils";
 import { useParams } from "react-router";
@@ -58,25 +58,25 @@ export function VideoCard({
         <TypographyH4>{getFileNameWithoutExtension(name)}</TypographyH4>
       </CardTitle>
 
-      <CardContent className="flex flex-col space-y-2 text-sm text-muted-foreground -mt-2">
+      <CardContent className="flex flex-col space-y-2 -mt-2">
         <div className="flex justify-between">
           <div className="flex items-center">
             <Calendar className="mr-1.5 h-4 w-4" />
-            {formatDate(dateCreated)}
+            <TypographySmall>{formatDate(dateCreated)}</TypographySmall>
           </div>
           <div className="flex items-center">
             <Clock className="mr-1.5 h-4 w-4" />
-            {formatDuration(duration)}
+            <TypographySmall>{formatDuration(duration)}</TypographySmall>
           </div>
         </div>
         <div className="flex justify-between">
           <div className="flex items-center">
             <Save className="mr-1.5 h-4 w-4" />
-            {formatFileSize(size)}
+            <TypographySmall>{formatFileSize(size)}</TypographySmall>
           </div>
           <div className="flex items-center">
             <Proportions className="mr-1.5 h-4 w-4" />
-            {resolution}
+            <TypographySmall>{resolution}</TypographySmall>
           </div>
         </div>
       </CardContent>
