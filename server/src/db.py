@@ -1,10 +1,9 @@
 import logging
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from typing import Generator
 from models import Base
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
 
 
 # Enable foreign key constraints for SQLite so ON DELETE CASCADE works

@@ -1,4 +1,5 @@
 import os
+import shutil
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -650,6 +651,49 @@ async def get_inference_results(video_id: int, db: Session = Depends(get_db)):
         "created_at": inference_results.created_at.isoformat(),
         "updated_at": inference_results.updated_at.isoformat(),
     }
+
+# Endpoint to delete a video, its frames, and its inference results
+
+
+@app.delete("/api/v1/videos/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_video(video_id: int, db: Session = Depends(get_db)):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    try:
+        # Delete the video
+        db.delete(video)
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to delete video {video_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete video {video_id}: {str(e)}"
+        )
+
+    # Delete the video directory, since it contains the frames and inference results
+    video_name = Path(video.file_name).stem
+    video_dir = public_videos_dir_with_video_name(video_name)
+    if video_dir.exists():
+        try:
+            for item in video_dir.iterdir():
+                if item.is_file():
+                    item.unlink()
+                else:
+                    shutil.rmtree(item)
+            video_dir.rmdir()  # Remove the directory itself
+        except Exception as e:
+            logger.error(
+                f"Failed to delete video directory {video_name}: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to delete video directory {video_name}: {str(e)}"
+            )
+
+    return {"status": "success", "message": "Video deleted successfully"}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)
