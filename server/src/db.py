@@ -3,6 +3,17 @@ from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy import create_engine
 from typing import Generator
 from models import Base
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+
+# Enable foreign key constraints for SQLite so ON DELETE CASCADE works
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON;")
+    cursor.close()
+
 
 # Setup logging
 logger = logging.getLogger(__name__)
