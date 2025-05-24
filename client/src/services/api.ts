@@ -419,11 +419,15 @@ export function downloadYoloDataset(videoId: string): void {
 export async function deleteLastPoint(
   videoId: string,
   objectId: string,
+  checkpoint?: string,
 ): Promise<{ status: string; message: string }> {
   const response = await fetch(
     `${apiUrl}/videos/${videoId}/objects/${objectId}/points`,
     {
       method: "DELETE",
+      body: JSON.stringify({
+        checkpoint,
+      }),
     },
   );
 

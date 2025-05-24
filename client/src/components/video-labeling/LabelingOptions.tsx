@@ -28,6 +28,8 @@ interface LabelingOptionsProps {
   videoObjects: VideoObject[];
   isLoading?: boolean;
   videoId: string; // Add videoId prop to pass to CreateObjectForm
+  checkpoint?: string; // Optional checkpoint prop
+  setIsVideoProcessing: (isProcessing: boolean) => void; // Optional setter for video processing state
 }
 
 export function LabelingOptions({
@@ -38,6 +40,8 @@ export function LabelingOptions({
   videoObjects,
   isLoading = false,
   videoId,
+  checkpoint,
+  setIsVideoProcessing,
 }: LabelingOptionsProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -52,8 +56,9 @@ export function LabelingOptions({
     if (!selectedObject) return;
 
     setIsUndoLoading(true);
+    setIsVideoProcessing(true);
     try {
-      await deleteLastPoint(videoId, selectedObject);
+      await deleteLastPoint(videoId, selectedObject, checkpoint);
       // Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ["videoObjects", videoId] });
       // Also invalidate any inference frame data
@@ -71,6 +76,7 @@ export function LabelingOptions({
       });
     } finally {
       setIsUndoLoading(false);
+      setIsVideoProcessing(false);
     }
   };
 
