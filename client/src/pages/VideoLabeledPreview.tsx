@@ -1,9 +1,21 @@
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { TypographyH4 } from "@/components/typography/typography";
+import {
+  TypographyH4,
+  TypographySmall,
+} from "@/components/typography/typography";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Download, Nut, Box, Drama } from "lucide-react";
+import {
+  Download,
+  Nut,
+  Box,
+  Drama,
+  Brain,
+  Gauge,
+  TableOfContents,
+  Clock2,
+} from "lucide-react";
 import { useParams } from "react-router";
 import { ContentHeader } from "@/components/layout/ContentHeader";
 import {
@@ -11,9 +23,11 @@ import {
   getVideoInferenceUrl,
   getInferenceThumbnailUrl,
   downloadYoloDataset,
+  fetchInferenceResults,
 } from "@/services/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { formatDateTime } from "@/lib/utils";
 
 export default function VideoLabeledPreview() {
   let { videoId } = useParams();
@@ -25,6 +39,18 @@ export default function VideoLabeledPreview() {
   } = useQuery({
     queryKey: ["video", videoId],
     queryFn: () => fetchVideoById(videoId!),
+    enabled: !!videoId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  const {
+    data: inferenceResults,
+    isLoading: isLoadingInference,
+    error: inferenceError,
+  } = useQuery({
+    queryKey: ["inferenceResults", videoId],
+    queryFn: () => fetchInferenceResults(videoId!),
     enabled: !!videoId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
@@ -89,6 +115,66 @@ export default function VideoLabeledPreview() {
         </div>
 
         <div className="w-full lg:w-80 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <TypographyH4>Inference Metadata</TypographyH4>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingInference ? (
+                <div className="text-center py-2">Loading metadata...</div>
+              ) : inferenceError ? (
+                <div className="text-center py-2 text-destructive">
+                  {inferenceError instanceof Error
+                    ? inferenceError.message
+                    : "Failed to load inference metadata"}
+                </div>
+              ) : inferenceResults ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <div className="flex items-center">
+                      <Brain className="h-4 w-4 mr-2" />
+                      <TypographySmall>Model:</TypographySmall>
+                    </div>
+                    <TypographySmall>
+                      SAM2 {inferenceResults.model_checkpoint}
+                    </TypographySmall>
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="flex items-center">
+                      <Gauge className="h-4 w-4 mr-2" />
+                      <TypographySmall>FPS:</TypographySmall>
+                    </div>
+                    <TypographySmall>{inferenceResults.fps}</TypographySmall>
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="flex items-center">
+                      <TableOfContents className="h-4 w-4 mr-2" />
+                      <TypographySmall>Frames:</TypographySmall>
+                    </div>
+                    <TypographySmall>
+                      {inferenceResults.frame_count}
+                    </TypographySmall>
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="flex items-center">
+                      <Clock2 className="h-4 w-4 mr-2" />
+                      <TypographySmall>Last Updated:</TypographySmall>
+                    </div>
+                    <TypographySmall>
+                      {formatDateTime(inferenceResults.updated_at)}
+                    </TypographySmall>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-2 text-muted-foreground">
+                  No inference data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>
