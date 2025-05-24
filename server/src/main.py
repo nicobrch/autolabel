@@ -673,6 +673,21 @@ async def delete_video(video_id: int, db: Session = Depends(get_db)):
             detail=f"Failed to delete video {video_id}: {str(e)}"
         )
 
+    # Delete all inference videos from the Video table associated with this video
+    try:
+        inference_videos = db.query(VideoInference).filter(
+            VideoInference.base_video_id == video_id).all()
+        for inference_video in inference_videos:
+            db.delete(inference_video)
+        db.commit()
+    except Exception as e:
+        logger.error(
+            f"Failed to delete inference videos for video {video_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete inference videos for video {video_id}: {str(e)}"
+        )
+
     # Delete the video directory, since it contains the frames and inference results
     video_name = Path(video.file_name).stem
     video_dir = public_videos_dir_with_video_name(video_name)
