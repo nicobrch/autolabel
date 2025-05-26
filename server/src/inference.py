@@ -32,14 +32,10 @@ class InferenceAPI:
         """Initialize the SAM2 predictor with the specified checkpoint."""
 
         model_map = {
-            "tiny": (r"C:\Users\Nico\Develop\sam2\checkpoints\sam2.1_hiera_tiny.pt",
-                     r"C:\Users\Nico\Develop\sam2\sam2\configs\sam2.1\sam2.1_hiera_t.yaml"),
-            "small": (r"C:\Users\Nico\Develop\sam2\checkpoints\sam2.1_hiera_small.pt",
-                      r"C:\Users\Nico\Develop\sam2\sam2\configs\sam2.1\sam2.1_hiera_s.yaml"),
-            "base-plus": (r"C:\Users\Nico\Develop\sam2\checkpoints\sam2.1_hiera_base_plus.pt",
-                          r"C:\Users\Nico\Develop\sam2\sam2\configs\sam2.1\sam2.1_hiera_b+.yaml"),
-            "large": (r"C:\Users\Nico\Develop\sam2\checkpoints\sam2.1_hiera_large.pt",
-                      r"C:\Users\Nico\Develop\sam2\sam2\configs\sam2.1\sam2.1_hiera_l.yaml"),
+            "tiny": ("../checkpoints/sam2.1_hiera_tiny.pt", "../configs/sam2.1_hiera_t.yaml"),
+            "small": ("../checkpoints/sam2.1_hiera_small.pt", "../configs/sam2.1_hiera_s.yaml"),
+            "base-plus": ("../checkpoints/sam2.1_hiera_base_plus.pt", "../configs/sam2.1_hiera_b+.yaml"),
+            "large": ("../checkpoints/sam2.1_hiera_large.pt", "../configs/sam2.1_hiera_l.yaml"),
         }
 
         if self.checkpoint not in model_map:
