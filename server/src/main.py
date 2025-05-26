@@ -37,6 +37,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Ensure public directory exists
+public_dir = Path(abspath("public"))
+public_dir.mkdir(exist_ok=True, parents=True)
+# Ensure public videos directory exists
+public_videos_dir = Path(abspath("public/videos"))
+public_videos_dir.mkdir(exist_ok=True, parents=True)
+
 # Mount static files directories
 app.mount("/public", StaticFiles(directory=abspath("public")), name="public")
 

@@ -4,16 +4,46 @@ This backend was created using FastAPI, SQLAlchemy and SQLite. Since it's main p
 
 ## Installation
 
-Create a conda environment and install deps
+Create a virtual environment for the project. UV is highly recommended.
 
 ```shell
-conda create -n my_env --file requirements.txt
-conda activate my_env
+uv venv .venv
+```
+
+Then, activate this environment.
+
+```shell
+# On Windows
+.venv\Scripts\activate
+# On Linux
+source .venv/bin/activate
+```
+
+Install project dependencies.
+
+```shell
+uv pip install -r requirements.txt
+```
+
+Download SAM2 model checkpoints directly from META.
+
+```shell
+cd checkpoints
+download.sh
+```
+
+Finally, initialize the database
+
+```shell
+cd src
+uv run db.py
 ```
 
 ## Usage
 
+Once you completed the installation steps, you can run the server backend with:
+
 ```shell
-cd server
-uvicorn main:app --reload
+cd src
+uv run main.py
 ```

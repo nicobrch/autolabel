@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    networks:
+      - autolabel-network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./server/data:/app/data
+    networks:
+      - autolabel-network
+
+networks:
+  autolabel-network:
+    driver: bridge
