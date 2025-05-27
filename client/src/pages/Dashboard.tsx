@@ -72,6 +72,8 @@ export default function Dashboard() {
               id={project.id}
               name={project.name}
               description={project.description}
+              dateCreated={project.created_at}
+              videoCount={project.video_count}
             />
           ))
         )}

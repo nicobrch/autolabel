@@ -30,6 +30,8 @@ interface ProjectData {
   id: number;
   name: string;
   description: string;
+  created_at: string; // ISO date string
+  video_count: number; // Add this new field
 }
 
 export async function fetchProjects(): Promise<ProjectData[]> {

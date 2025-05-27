@@ -59,7 +59,7 @@ export function VideoCard({
       </div>
 
       <CardTitle className="flex justify-between px-4">
-        <TypographyH4>{getFileNameWithoutExtension(name)}</TypographyH4>
+        {getFileNameWithoutExtension(name)}
         <button
           className="hover:text-destructive/80 text-destructive/50 transform hover:scale-105 transition-all duration-300"
           onClick={() => setIsDeleteDialogOpen(true)}

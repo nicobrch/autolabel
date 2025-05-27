@@ -56,7 +56,17 @@ async def root():
 @app.get("/api/v1/projects", response_model=List[dict])
 async def list_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     projects = db.query(Project).offset(skip).limit(limit).all()
-    return [sqlalchemy_to_dict(project) for project in projects]
+    result = []
+    for project in projects:
+        project_dict = sqlalchemy_to_dict(project)
+        # Count base videos for this project
+        video_count = db.query(Video).filter(
+            Video.project_id == project.id,
+            Video.type == "base"
+        ).count()
+        project_dict["video_count"] = video_count
+        result.append(project_dict)
+    return result
 
 
 @app.get("/api/v1/projects/{project_id}", response_model=dict)
