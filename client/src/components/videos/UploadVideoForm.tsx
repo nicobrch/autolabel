@@ -24,6 +24,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getFileNameWithoutExtension } from "@/lib/utils";
+import { z } from "zod";
+
+// Define validation schema
+const uploadVideoSchema = z.object({
+  name: z.string().min(1, "Video name is required"),
+  fps: z
+    .number()
+    .int()
+    .min(1, "FPS must be at least 1")
+    .max(24, "FPS cannot exceed 24"),
+  resolution: z.string(),
+});
 
 export function UploadVideoForm({
   setIsOpen,
@@ -33,7 +45,7 @@ export function UploadVideoForm({
   const [name, setName] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [resolution, setResolution] = useState<string>("Original");
-  const [fps, setFps] = useState<number>(5);
+  const [fps, setFps] = useState<number>(2);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -62,6 +74,22 @@ export function UploadVideoForm({
     }
 
     try {
+      // Validate form data
+      const result = uploadVideoSchema.safeParse({
+        name,
+        fps,
+        resolution,
+      });
+
+      if (!result.success) {
+        // Extract the first validation error message
+        const errorMsg =
+          result.error.errors[0]?.message || "Validation failed";
+        setError(errorMsg);
+        setIsSubmitting(false);
+        return;
+      }
+
       await uploadVideoFile(parseInt(projectId!), files[0], resolution, fps);
       queryClient.invalidateQueries({ queryKey: ["videos", projectId] }); // Update query key
       setIsOpen(false);
@@ -106,12 +134,9 @@ export function UploadVideoForm({
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="Original">Original</SelectItem>
-                    <SelectItem value="854x480">854x480 (FWVGA)</SelectItem>
-                    <SelectItem value="960x540">960x540 (qHD)</SelectItem>
+                    <SelectItem value="1138x640">1138x640</SelectItem>
                     <SelectItem value="1280x720">1280x720 (HD)</SelectItem>
-                    <SelectItem value="1920x1080">
-                      1920x1080 (Full HD)
-                    </SelectItem>
+                    <SelectItem value="1600x900">1600x900 (HD+)</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -122,10 +147,20 @@ export function UploadVideoForm({
                 id="video-fps"
                 type="number"
                 value={fps}
-                onChange={(e) => setFps(parseInt(e.target.value))}
-                placeholder="e.g., 5"
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value)) {
+                    setFps(value);
+                  }
+                }}
+                min={1}
+                max={24}
+                placeholder="e.g., 2"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Must be between 1 and 24
+              </p>
             </div>
           </div>
           <DialogFooter className="flex justify-end space-x-2 pt-2">
@@ -136,7 +171,13 @@ export function UploadVideoForm({
             </DialogClose>
             <Button
               type="submit"
-              disabled={isSubmitting || !name.trim() || files.length === 0}
+              disabled={
+                isSubmitting ||
+                !name.trim() ||
+                files.length === 0 ||
+                fps < 1 ||
+                fps > 24
+              }
             >
               {isSubmitting ? "Uploading..." : "Upload Video"}
             </Button>
