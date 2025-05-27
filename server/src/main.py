@@ -516,7 +516,7 @@ async def remove_last_point(
     video_id: int,
     object_id: int,
     checkpoint: str = Body(
-        "small", description="SAM2 model checkpoint to use (tiny, small, base-plus, large)"),
+        "tiny", description="SAM2 model checkpoint to use (tiny, small, base-plus, large)"),
     db: Session = Depends(get_db)
 ):
     # Check if video exists
