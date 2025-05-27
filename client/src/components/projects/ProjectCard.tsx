@@ -1,8 +1,16 @@
 import { formatDate } from "@/lib/utils";
 import { TypographySmall } from "../typography/typography";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { NavLink } from "react-router";
-import { Calendar, FileVideo } from "lucide-react";
+import { Calendar, Download, FileVideo, ArrowRightFromLine, EllipsisVertical, Pencil, Trash2 } from "lucide-react";
+import { Button } from "../ui/button";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "../ui/dropdown-menu";
 
 interface ProjectCardProps {
   id: number;
@@ -14,13 +22,45 @@ interface ProjectCardProps {
 
 export function ProjectCard({ id, name, description, dateCreated, videoCount = 0 }: ProjectCardProps) {
   return (
-    <NavLink to={`/projects/${id}`} className="no-underline">
-      <Card>
-        <CardHeader>
-          <CardTitle>{name}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col space-y-2 -mt-2">
+    <Card>
+      <CardHeader className="flex flex-col space-y-2 overflow-hidden">
+        <div className="flex justify-between items-start w-full">
+          <div className="flex flex-col space-y-1 overflow-hidden">
+          <CardTitle className="truncate">
+            <NavLink to={`/projects/${id}`} className="block overflow-hidden text-ellipsis">
+            {name}
+            </NavLink>
+          </CardTitle>
+          <CardDescription className="truncate">{description}</CardDescription>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="text-primary transform hover:scale-105 transition-all duration-300 flex-shrink-0"
+              >
+                <EllipsisVertical className="h-5 w-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex flex-col space-y-2">
         <div className="flex justify-between">
           <div className="flex items-center">
             <FileVideo className="mr-1.5 h-4 w-4" />
@@ -32,7 +72,22 @@ export function ProjectCard({ id, name, description, dateCreated, videoCount = 0
           </div>
         </div>
       </CardContent>
-      </Card>
-    </NavLink>
+
+      <CardFooter className="flex justify-between gap-2 px-4">
+        <Button variant="default" size="sm" className="flex-1" asChild>
+          <NavLink to={`/projects/${id}`}>
+            <ArrowRightFromLine className="mr-1.5 h-4 w-4" />
+            Videos
+          </NavLink>
+        </Button>
+
+        <Button variant="outline" size="sm" className="flex-1" asChild>
+          <NavLink to={`#`}>
+            <Download className="mr-1.5 h-4 w-4" />
+            Download
+          </NavLink>
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

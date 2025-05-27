@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { formatDuration, formatFileSize } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
-import { TypographyH4, TypographySmall } from "../typography/typography";
+import { TypographySmall } from "../typography/typography";
 import { NavLink } from "react-router";
 import { getFileNameWithoutExtension } from "@/lib/utils";
 import { useParams } from "react-router";
