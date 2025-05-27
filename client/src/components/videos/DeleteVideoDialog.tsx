@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getFileNameWithoutExtension } from "@/lib/utils";
@@ -70,15 +71,15 @@ export function DeleteVideoDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-destructive">Delete Video</DialogTitle>
-          <DialogDescription>
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-destructive">Delete Video</AlertDialogTitle>
+          <AlertDialogDescription>
             This action cannot be undone. The video and all its associated data
             will be permanently deleted from the server.
-          </DialogDescription>
-        </DialogHeader>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
         <div className="py-2">
           <div className="mb-2">
@@ -109,15 +110,13 @@ export function DeleteVideoDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex justify-between sm:justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
+        <AlertDialogFooter className="flex justify-between sm:justify-between">
+          <AlertDialogCancel
+            onClick={() => setConfirmName("")}
             disabled={isDeleting}
           >
             Cancel
-          </Button>
+          </AlertDialogCancel>
           <Button
             type="button"
             variant="destructive"
@@ -126,8 +125,8 @@ export function DeleteVideoDialog({
           >
             {isDeleting ? "Deleting..." : "Delete Video"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
