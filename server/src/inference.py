@@ -4,11 +4,12 @@ import cv2
 from pathlib import Path
 from typing import Union
 from sqlalchemy.orm import Session
-from sqlalchemy import exists  # Add this import
+from sqlalchemy import exists
 from db import get_db
 from models import Object, Point, Frame, Mask, Video
 from utils import construct_video_from_inference_frames, create_yolo_data_yaml, get_frames_list, mask_to_yolo_bbox, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_yolo_dir_with_video_name, save_yolo_annotations, serialize_mask, logger, hex_to_rgb
 from sam2.build_sam import build_sam2_video_predictor
+import os
 
 
 class InferenceAPI:
@@ -31,12 +32,35 @@ class InferenceAPI:
     def _initialize_predictor(self):
         """Initialize the SAM2 predictor with the specified checkpoint."""
 
+        # Get the absolute path to the project root directory
+        current_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+        src_directory = current_dir.parent
+
+        # Define absolute paths to checkpoints and configs
         model_map = {
-            "tiny": ("../checkpoints/sam2.1_hiera_tiny.pt", "../configs/sam2.1_hiera_t.yaml"),
-            "small": ("../checkpoints/sam2.1_hiera_small.pt", "../configs/sam2.1_hiera_s.yaml"),
-            "base-plus": ("../checkpoints/sam2.1_hiera_base_plus.pt", "../configs/sam2.1_hiera_b+.yaml"),
-            "large": ("../checkpoints/sam2.1_hiera_large.pt", "../configs/sam2.1_hiera_l.yaml"),
+            "tiny": (
+                str(src_directory / "checkpoints" / "sam2.1_hiera_tiny.pt"),
+                str(src_directory / "configs" / "sam2.1_hiera_t.yaml")
+            ),
+            "small": (
+                str(src_directory / "checkpoints" / "sam2.1_hiera_small.pt"),
+                str(src_directory / "configs" / "sam2.1_hiera_s.yaml")
+            ),
+            "base-plus": (
+                str(src_directory / "checkpoints" / "sam2.1_hiera_base_plus.pt"),
+                str(src_directory / "configs" / "sam2.1_hiera_b+.yaml")
+            ),
+            "large": (
+                str(src_directory / "checkpoints" / "sam2.1_hiera_large.pt"),
+                str(src_directory / "configs" / "sam2.1_hiera_l.yaml")
+            ),
         }
+
+        # Ensure configs directory exists
+        configs_dir = src_directory / "configs"
+        if not configs_dir.exists():
+            configs_dir.mkdir(parents=True, exist_ok=True)
+            logger.warning(f"Created configs directory at {configs_dir}")
 
         if self.checkpoint not in model_map:
             valid_options = ', '.join(model_map.keys())
@@ -46,6 +70,8 @@ class InferenceAPI:
         checkpoint_path, config_path = model_map[self.checkpoint]
         logger.info(
             f"Initializing SAM2 predictor with {self.checkpoint} model on {self.device}")
+        logger.info(f"Using checkpoint path: {checkpoint_path}")
+        logger.info(f"Using config path: {config_path}")
 
         if self.device.type == "cpu":
             self.predictor = build_sam2_video_predictor(
