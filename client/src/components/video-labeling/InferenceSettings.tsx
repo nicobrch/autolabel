@@ -14,24 +14,22 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { propagateVideo } from "@/services/api";
 import { toast } from "sonner";
+import { useModelStore } from "@/stores/modelStore";
 
 interface InferenceSettingsProps {
-  modelCheckpoint: string;
-  onModelCheckpointChange: (value: string) => void;
   onLabelVideo: () => void;
   videoId: string;
   projectId: string;
 }
 
 export function InferenceSettings({
-  modelCheckpoint,
-  onModelCheckpointChange,
   onLabelVideo,
   videoId,
   projectId,
 }: InferenceSettingsProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
+  const { modelCheckpoint, setModelCheckpoint } = useModelStore();
 
   const handleLabelVideo = async () => {
     if (!videoId) {
@@ -91,7 +89,7 @@ export function InferenceSettings({
           <Label htmlFor="model-checkpoint">Model Checkpoint</Label>
           <Select
             value={modelCheckpoint}
-            onValueChange={onModelCheckpointChange}
+            onValueChange={setModelCheckpoint}
             disabled={isProcessing}
           >
             <SelectTrigger id="model-checkpoint" className="w-full">
