@@ -65,6 +65,7 @@ export default function ProjectManager() {
               dateCreated={video.created_at}
               videoPath={getVideoUrl(video.file_name)}
               firstFramePath={getThumbnailFrameUrl(video.file_name)}
+              hasInference={video.has_inference}
             />
           ))
         ) : (

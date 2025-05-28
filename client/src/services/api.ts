@@ -94,6 +94,7 @@ export interface Video {
   duration: number;
   created_at: string; // ISO date string
   updated_at: string; // ISO date string
+  has_inference: boolean;
 }
 
 export async function fetchVideos(videoId: string): Promise<Video[]> {
