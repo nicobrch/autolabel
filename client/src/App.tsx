@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import VideoLabeling from "./pages/VideoLabeling";
 import VideoLabeledPreview from "./pages/VideoLabeledPreview";
 import ProjectManager from "./pages/ProjectManager";
+import NotFoundPage from "./components/layout/404-Page";
 
 // Helper component for redirecting from /projects/:projectId/label
 function ProjectLabelRedirect() {
@@ -48,6 +49,8 @@ export default function App() {
                 path="/projects/:projectId/download/:videoId"
                 element={<VideoLabeledPreview />}
               />
+              {/* 404 catch-all route */}
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
           <Toaster />
