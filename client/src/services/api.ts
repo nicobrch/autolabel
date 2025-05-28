@@ -500,3 +500,28 @@ export async function deleteVideo(videoId: string): Promise<void> {
     throw new Error(errorDetail);
   }
 }
+
+/**
+ * Deletes a project and all its associated data
+ */
+export async function deleteProject(projectId: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/projects/${projectId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    let errorDetail = "Failed to delete project";
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.detail) {
+        errorDetail = errorData.detail;
+      }
+    } catch (e) {
+      const textError = await response.text().catch(() => "");
+      if (textError) {
+        errorDetail = textError;
+      }
+    }
+    throw new Error(errorDetail);
+  }
+}

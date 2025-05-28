@@ -1,16 +1,33 @@
 import { formatDate } from "@/lib/utils";
 import { TypographySmall } from "../typography/typography";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { NavLink } from "react-router";
-import { Calendar, Download, FileVideo, ArrowRightFromLine, EllipsisVertical, Pencil, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  Download,
+  FileVideo,
+  ArrowRightFromLine,
+  EllipsisVertical,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Button } from "../ui/button";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { useState } from "react";
+import { DeleteProjectDialog } from "./DeleteProjectDialog";
 
 interface ProjectCardProps {
   id: number;
@@ -20,24 +37,35 @@ interface ProjectCardProps {
   videoCount: number;
 }
 
-export function ProjectCard({ id, name, description, dateCreated, videoCount = 0 }: ProjectCardProps) {
+export function ProjectCard({
+  id,
+  name,
+  description,
+  dateCreated,
+  videoCount = 0,
+}: ProjectCardProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
   return (
     <Card>
       <CardHeader className="flex flex-col space-y-2 overflow-hidden">
         <div className="flex justify-between items-start w-full">
           <div className="flex flex-col space-y-1 overflow-hidden">
-          <CardTitle className="truncate">
-            <NavLink to={`/projects/${id}`} className="block overflow-hidden text-ellipsis">
-            {name}
-            </NavLink>
-          </CardTitle>
-          <CardDescription className="truncate">{description}</CardDescription>
+            <CardTitle className="truncate">
+              <NavLink
+                to={`/projects/${id}`}
+                className="block overflow-hidden text-ellipsis"
+              >
+                {name}
+              </NavLink>
+            </CardTitle>
+            <CardDescription className="truncate">
+              {description}
+            </CardDescription>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
-                className="text-primary transform hover:scale-105 transition-all duration-300 flex-shrink-0"
-              >
+              <button className="text-primary transform hover:scale-105 transition-all duration-300 flex-shrink-0">
                 <EllipsisVertical className="h-5 w-5" />
               </button>
             </DropdownMenuTrigger>
@@ -51,7 +79,10 @@ export function ProjectCard({ id, name, description, dateCreated, videoCount = 0
                 Export
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive">
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
@@ -59,6 +90,14 @@ export function ProjectCard({ id, name, description, dateCreated, videoCount = 0
           </DropdownMenu>
         </div>
       </CardHeader>
+
+      {/* Delete Project Dialog */}
+      <DeleteProjectDialog
+        projectId={id}
+        projectName={name}
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      />
 
       <CardContent className="flex flex-col space-y-2">
         <div className="flex justify-between">
