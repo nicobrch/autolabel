@@ -97,9 +97,66 @@ async def delete_project(project_id: int, db: Session = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    db.delete(project)
-    db.commit()
-    return None
+    # Get all videos associated with this project
+    videos = db.query(Video).filter(Video.project_id == project_id).all()
+
+    # Delete each video and its associated files
+    for video in videos:
+        video_id = video.id
+        video_name = Path(video.file_name).stem
+
+        try:
+            # Delete inference videos from the database
+            inference_videos = db.query(VideoInference).filter(
+                VideoInference.base_video_id == video_id).all()
+            for inference_video in inference_videos:
+                db.delete(inference_video)
+
+            # Delete the video from the database
+            db.delete(video)
+
+        except Exception as e:
+            logger.error(
+                f"Failed to delete video {video_id} data: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to delete video {video_id} data: {str(e)}"
+            )
+
+        # Delete the video directory with all its contents
+        video_dir = public_videos_dir_with_video_name(video_name)
+        if video_dir.exists():
+            try:
+                for item in video_dir.iterdir():
+                    if item.is_file():
+                        item.unlink()
+                    else:
+                        shutil.rmtree(item)
+                video_dir.rmdir()  # Remove the directory itself
+                logger.info(f"Deleted video directory: {video_dir}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to delete video directory {video_name}: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to delete video directory {video_name}: {str(e)}"
+                )
+
+    # Finally delete the project
+    try:
+        db.delete(project)
+        db.commit()
+        logger.info(
+            f"Project {project_id} and all associated data deleted successfully")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete project {project_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete project {project_id}: {str(e)}"
+        )
+
+    return {"status": "success", "message": "Project and all associated data deleted successfully"}
 
 
 @app.get("/api/v1/projects/{project_id}/videos", response_model=List[dict])
@@ -681,9 +738,8 @@ async def get_inference_results(video_id: int, db: Session = Depends(get_db)):
         "updated_at": inference_results.updated_at.isoformat(),
     }
 
+
 # Endpoint to delete a video, its frames, and its inference results
-
-
 @app.delete("/api/v1/videos/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_video(video_id: int, db: Session = Depends(get_db)):
     # Check if video exists
