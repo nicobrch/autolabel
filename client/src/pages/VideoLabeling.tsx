@@ -15,13 +15,14 @@ import {
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { LoadingFrameSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
+import { useModelStore } from "@/stores/modelStore";
 
 export default function VideoLabeling() {
   const { videoId } = useParams<{ videoId: string }>();
   const { projectId } = useParams<{ projectId: string }>();
   const queryClient = useQueryClient();
+  const { modelCheckpoint } = useModelStore();
 
-  const [modelCheckpoint, setModelCheckpoint] = useState("tiny");
   const [selectedObject, setSelectedObject] = useState<string>("");
   const [pointType, setPointType] = useState("positive");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -249,8 +250,6 @@ export default function VideoLabeling() {
 
         <div className="w-full lg:w-80 space-y-6">
           <InferenceSettings
-            modelCheckpoint={modelCheckpoint}
-            onModelCheckpointChange={setModelCheckpoint}
             onLabelVideo={handleLabelVideo}
             videoId={videoId || ""}
             projectId={projectId || ""}
@@ -264,7 +263,6 @@ export default function VideoLabeling() {
             videoObjects={objectsData || []}
             isLoading={isObjectsPending}
             videoId={videoId || ""}
-            checkpoint={modelCheckpoint}
             setIsVideoProcessing={setIsProcessing}
           />
         </div>

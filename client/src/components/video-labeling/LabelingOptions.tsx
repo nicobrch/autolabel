@@ -18,6 +18,7 @@ import { CreateObjectForm } from "@/components/video-labeling/CreateObjectForm";
 import { EditObjectForm } from "@/components/video-labeling/EditObjectForm";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useModelStore } from "@/stores/modelStore";
 
 interface LabelingOptionsProps {
   selectedObject: string;
@@ -28,7 +29,6 @@ interface LabelingOptionsProps {
   videoObjects: VideoObject[];
   isLoading?: boolean;
   videoId: string; // Add videoId prop to pass to CreateObjectForm
-  checkpoint?: string; // Optional checkpoint prop
   setIsVideoProcessing: (isProcessing: boolean) => void; // Optional setter for video processing state
 }
 
@@ -40,13 +40,13 @@ export function LabelingOptions({
   videoObjects,
   isLoading = false,
   videoId,
-  checkpoint,
   setIsVideoProcessing,
 }: LabelingOptionsProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUndoLoading, setIsUndoLoading] = useState(false);
   const queryClient = useQueryClient();
+  const { modelCheckpoint } = useModelStore();
 
   const selectedObjectData = selectedObject
     ? videoObjects.find((obj) => obj.id.toString() === selectedObject)
@@ -58,7 +58,7 @@ export function LabelingOptions({
     setIsUndoLoading(true);
     setIsVideoProcessing(true);
     try {
-      await deleteLastPoint(videoId, selectedObject, checkpoint);
+      await deleteLastPoint(videoId, selectedObject, modelCheckpoint);
       // Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ["videoObjects", videoId] });
       // Also invalidate any inference frame data
