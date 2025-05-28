@@ -112,7 +112,19 @@ async def list_project_videos(project_id: int, db: Session = Depends(get_db)):
         Video.project_id == project_id,
         Video.type == "base"
     ).all()
-    return [sqlalchemy_to_dict(video) for video in videos]
+
+    result = []
+    for video in videos:
+        video_dict = sqlalchemy_to_dict(video)
+
+        # Check if the video has an associated inference video
+        has_inference = db.query(exists().where(
+            VideoInference.base_video_id == video.id)).scalar()
+        video_dict["has_inference"] = has_inference
+
+        result.append(video_dict)
+
+    return result
 
 
 # Get video by ID

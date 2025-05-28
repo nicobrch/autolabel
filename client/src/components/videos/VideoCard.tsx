@@ -27,6 +27,7 @@ interface VideoCardProps {
   dateCreated: string;
   videoPath: string;
   firstFramePath?: string; // Add this new prop for the first frame
+  hasInference?: boolean; // New prop to check if video has inference
 }
 
 export function VideoCard({
@@ -38,6 +39,7 @@ export function VideoCard({
   dateCreated,
   videoPath,
   firstFramePath,
+  hasInference = false, // Default to false if not provided
 }: VideoCardProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -108,12 +110,25 @@ export function VideoCard({
           </NavLink>
         </Button>
 
-        <Button variant="outline" size="sm" className="flex-1" asChild>
-          <NavLink to={`/projects/${projectId}/download/${id}`}>
+        {hasInference ? (
+          <Button variant="outline" size="sm" className="flex-1" asChild>
+            <NavLink to={`/projects/${projectId}/download/${id}`}>
+              <Download className="mr-1.5 h-4 w-4" />
+              Download
+            </NavLink>
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            disabled
+            title="Run inference first"
+          >
             <Download className="mr-1.5 h-4 w-4" />
             Download
-          </NavLink>
-        </Button>
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
