@@ -16,7 +16,7 @@ import {
   TableOfContents,
   Clock2,
 } from "lucide-react";
-import { useParams } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { ContentHeader } from "@/components/layout/ContentHeader";
 import {
   fetchVideoById,
@@ -28,9 +28,11 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/utils";
+import { useEffect } from "react";
 
 export default function VideoLabeledPreview() {
   let { videoId } = useParams();
+  const navigate = useNavigate();
 
   const {
     data: video,
@@ -44,6 +46,36 @@ export default function VideoLabeledPreview() {
     refetchOnWindowFocus: false,
   });
 
+  // Check if the inference video exists as soon as the base video data is loaded
+  useEffect(() => {
+    if (!isLoading && video) {
+      // Get the inference video URL
+      const inferenceVideoUrl = getVideoInferenceUrl(video.file_name);
+
+      // Use fetch to check if the inference video exists
+      fetch(inferenceVideoUrl, { method: "HEAD" })
+        .then((response) => {
+          if (!response.ok) {
+            // If response is not OK (e.g., 404), redirect to not found
+            navigate("/not-found");
+          }
+        })
+        .catch(() => {
+          // If fetch fails (network error, etc.), redirect to not found
+          navigate("/not-found");
+        });
+
+      // Set a short timeout as a fallback for the API query
+      const timeout = setTimeout(() => {
+        if (!inferenceResults && !isLoadingInference) {
+          navigate("/not-found");
+        }
+      }, 1000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading, video, navigate]);
+
   const {
     data: inferenceResults,
     isLoading: isLoadingInference,
@@ -55,6 +87,13 @@ export default function VideoLabeledPreview() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
+
+  // Redirect to 404 page if inference results are not found
+  useEffect(() => {
+    if (!isLoadingInference && (inferenceError || !inferenceResults)) {
+      navigate("/not-found");
+    }
+  }, [isLoadingInference, inferenceError, inferenceResults, navigate]);
 
   // Create a mutation for downloading YOLO dataset
   const downloadYoloMutation = useMutation({
