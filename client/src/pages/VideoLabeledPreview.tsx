@@ -23,6 +23,7 @@ import {
   getVideoInferenceUrl,
   getInferenceThumbnailUrl,
   downloadYoloDataset,
+  downloadCocoDataset,
   fetchInferenceResults,
 } from "@/services/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -103,7 +104,20 @@ export default function VideoLabeledPreview() {
     },
     onError: (error) => {
       toast.error("Download error", {
-        description: `Download failed ${error} Please try again.`,
+        description: `YOLO download failed ${error} Please try again.`,
+      });
+    },
+  });
+
+  // Create a mutation for downloading COCO dataset
+  const downloadCocoMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoId) throw new Error("Video ID is required");
+      return await downloadCocoDataset(videoId);
+    },
+    onError: (error) => {
+      toast.error("Download error", {
+        description: `COCO download failed ${error} Please try again.`,
       });
     },
   });
@@ -116,6 +130,16 @@ export default function VideoLabeledPreview() {
       return;
     }
     downloadYoloMutation.mutate();
+  };
+
+  const handleDownloadCoco = () => {
+    if (!videoId) {
+      toast.error("Video ID missing", {
+        description: "Video ID is missing. Please try again.",
+      });
+      return;
+    }
+    downloadCocoMutation.mutate();
   };
 
   return (
@@ -223,9 +247,16 @@ export default function VideoLabeledPreview() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="model-checkpoint">Labels</Label>
-                <Button className="w-full" variant="outline">
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={handleDownloadCoco}
+                  disabled={downloadCocoMutation.isPending || !videoId}
+                >
                   <Nut className="h-4 w-4 mr-2" />
-                  Download COCO labels
+                  {downloadCocoMutation.isPending
+                    ? "Downloading..."
+                    : "Download COCO labels"}
                 </Button>
                 <Button
                   className="w-full"
