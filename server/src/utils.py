@@ -49,6 +49,10 @@ def public_coco_dir_with_video_name(video_name: str) -> Path:
     return Path(f"public/videos/{video_name}/coco")
 
 
+def public_cvat_dir_with_video_name(video_name: str) -> Path:
+    return Path(f"public/videos/{video_name}/cvat")
+
+
 def public_yolo_dir_with_video_name(video_name: str) -> Path:
     return Path(f"public/videos/{video_name}/yolo")
 
@@ -893,4 +897,242 @@ def create_yolo_dataset_zip(video_id: int, db: Session = next(get_db())) -> Opti
 
     except Exception as e:
         logger.error(f"Error creating YOLO dataset ZIP: {e}")
+        return None
+
+
+def mask_to_coco_bbox(mask: np.ndarray) -> tuple:
+    """
+    Convert a binary mask to COCO format bounding box (x, y, width, height).
+
+    Args:
+        mask: Binary mask as numpy array
+
+    Returns:
+        Tuple of (x, y, width, height) in absolute coordinates
+    """
+    try:
+        x_min, y_min, x_max, y_max = create_bounding_box_on_mask(mask)
+
+        # Calculate width and height
+        width = x_max - x_min
+        height = y_max - y_min
+
+        # COCO format: [x, y, width, height] where (x, y) is top-left corner
+        return (x_min, y_min, width, height)
+    except (IndexError, ValueError):
+        # Return zeros if mask is empty or has issues
+        logger.warning(
+            "Empty or invalid mask encountered when creating COCO bbox")
+        return (0, 0, 0, 0)
+
+
+def create_coco_annotations_structure(objects: list, base_frames: List[Path]) -> dict:
+    """
+    Create the basic COCO annotations data structure.
+
+    Args:
+        objects: List of Object instances
+        base_frames: List of base frame paths
+
+    Returns:
+        COCO format dictionary with images, annotations, and categories
+    """
+    # Create unique categories based on object names (merge objects with same name)
+    unique_names = list(set(obj.name for obj in objects))
+    categories = []
+    for idx, name in enumerate(sorted(unique_names)):
+        categories.append({
+            'id': idx + 1,  # COCO uses 1-based indexing
+            'name': name,
+            'supercategory': 'object'
+        })
+
+    # Create images metadata
+    images = []
+    for idx, frame_path in enumerate(base_frames):
+        # Get image dimensions
+        img = cv2.imread(str(frame_path))
+        if img is not None:
+            height, width = img.shape[:2]
+        else:
+            # Default dimensions if image can't be read
+            width, height = 1920, 1080
+            logger.warning(
+                f"Could not read image {frame_path}, using default dimensions")
+
+        images.append({
+            'id': idx + 1,  # COCO uses 1-based indexing
+            'file_name': frame_path.name,
+            'width': width,
+            'height': height
+        })
+
+    return {
+        'info': {
+            'description': 'SAM2 Generated Annotations',
+            'version': '1.0',
+            'year': datetime.datetime.now().year,
+            'contributor': 'AutoLabel Tool',
+            'date_created': datetime.datetime.now().isoformat()
+        },
+        'licenses': [],
+        'images': images,
+        'annotations': [],
+        'categories': categories
+    }
+
+
+def get_category_id_by_name(object_name: str, categories: list) -> int:
+    """
+    Get category ID by object name from COCO categories list.
+
+    Args:
+        object_name: Name of the object
+        categories: List of COCO category dictionaries
+
+    Returns:
+        Category ID (1-based)
+    """
+    for category in categories:
+        if category['name'] == object_name:
+            return category['id']
+
+    # If not found, return 1 as default
+    logger.warning(
+        f"Category not found for object name: {object_name}, using default ID 1")
+    return 1
+
+
+def save_coco_annotations(coco_data: dict, output_dir: Path, video_name: str) -> None:
+    """
+    Save COCO format annotations to a JSON file.
+
+    Args:
+        coco_data: COCO format dictionary
+        output_dir: Directory to save the JSON file
+        video_name: Name of the video (used in filename)
+    """
+    try:
+        # Create output directory if it doesn't exist
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Add unique annotation IDs and convert NumPy types to Python types
+        for idx, annotation in enumerate(coco_data['annotations']):
+            annotation['id'] = idx + 1  # COCO uses 1-based indexing
+            # Convert NumPy types to Python native types for JSON serialization
+            annotation['image_id'] = int(annotation['image_id'])
+            annotation['category_id'] = int(annotation['category_id'])
+            annotation['area'] = float(annotation['area'])
+            annotation['iscrowd'] = int(annotation['iscrowd'])
+            # Convert bbox values to Python native types
+            annotation['bbox'] = [float(x) for x in annotation['bbox']]
+
+        # Convert image dimensions to Python native types
+        for image in coco_data['images']:
+            image['id'] = int(image['id'])
+            image['width'] = int(image['width'])
+            image['height'] = int(image['height'])
+
+        # Convert category IDs to Python native types
+        for category in coco_data['categories']:
+            category['id'] = int(category['id'])
+
+        # Create output filename
+        output_file = output_dir / f"{video_name}_coco.json"
+
+        # Write annotations to JSON file
+        with open(output_file, 'w') as f:
+            json.dump(coco_data, f, indent=2)
+
+        logger.info(f"Saved COCO annotations to {output_file}")
+        logger.info(f"COCO dataset contains {len(coco_data['images'])} images, "
+                    f"{len(coco_data['annotations'])} annotations, "
+                    f"{len(coco_data['categories'])} categories")
+
+    except Exception as e:
+        logger.error(f"Error saving COCO annotations: {e}")
+
+
+def create_coco_dataset_zip(video_id: int, db: Session = next(get_db())) -> Optional[str]:
+    """
+    Create a ZIP archive containing COCO-formatted dataset for a video.
+
+    The ZIP contains:
+    - images/: All base frames with video_name prepended
+    - annotations/: COCO JSON annotation file
+
+    Args:
+        video_id: ID of the video
+        db: Database session
+
+    Returns:
+        Path to the created ZIP file or None if failed
+    """
+    try:
+        # Get the video from database
+        video = db.query(Video).filter_by(id=video_id).first()
+        if not video:
+            logger.error(f"Video with ID {video_id} not found in database")
+            return None
+
+        video_name = Path(video.file_path).stem
+
+        # Get paths to directories
+        base_frames_dir = public_frames_base_dir_with_video_name(video_name)
+        coco_dir = public_coco_dir_with_video_name(video_name)
+
+        # Check if directories exist
+        if not base_frames_dir.exists() or not coco_dir.exists():
+            logger.error(
+                f"Required directories not found for video {video_name}")
+            return None
+
+        # Check if COCO JSON file exists
+        coco_json_path = coco_dir / f"{video_name}_coco.json"
+        if not coco_json_path.exists():
+            logger.error(f"COCO annotations file not found: {coco_json_path}")
+            return None
+
+        # Create a temporary directory for preparing the ZIP contents
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+
+            # Create subdirectories
+            images_dir = temp_dir_path / "images"
+            annotations_dir = temp_dir_path / "annotations"
+            images_dir.mkdir()
+            annotations_dir.mkdir()
+
+            # Copy and rename image files
+            base_frames = get_frames_list(base_frames_dir)
+            for frame in base_frames:
+                new_name = f"{video_name}_{frame.name}"
+                shutil.copy(frame, images_dir / new_name)
+
+            # Copy COCO JSON file
+            shutil.copy(coco_json_path, annotations_dir /
+                        f"{video_name}_coco.json")
+
+            # Create ZIP file
+            zip_path = coco_dir / f"{video_name}_coco.zip"
+
+            # Remove existing ZIP if it exists
+            if zip_path.exists():
+                zip_path.unlink()
+
+            # Use zipfile to create the archive
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                # Add all files from temp directory to the ZIP
+                for root, _, files in os.walk(temp_dir_path):
+                    for file in files:
+                        file_path = Path(root) / file
+                        # Get relative path to maintain directory structure
+                        rel_path = file_path.relative_to(temp_dir_path)
+                        zipf.write(file_path, rel_path)
+
+            logger.info(f"Created COCO dataset ZIP at {zip_path}")
+            return str(zip_path)
+
+    except Exception as e:
+        logger.error(f"Error creating COCO dataset ZIP: {e}")
         return None
