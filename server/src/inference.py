@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import exists
 from db import get_db
 from models import Object, Point, Frame, Mask, Video
-from utils import construct_video_from_inference_frames, create_yolo_data_yaml, get_frames_list, mask_to_yolo_bbox, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_yolo_dir_with_video_name, save_yolo_annotations, serialize_mask, logger, hex_to_rgb
+from utils import construct_video_from_inference_frames, create_coco_annotations_structure, create_yolo_data_yaml, get_category_id_by_name, get_frames_list, mask_to_coco_bbox, mask_to_yolo_bbox, public_coco_dir_with_video_name, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_yolo_dir_with_video_name, save_coco_annotations, save_yolo_annotations, serialize_mask, logger, hex_to_rgb
 from sam2.build_sam import build_sam2_video_predictor
 import os
 
@@ -244,10 +244,12 @@ class InferenceAPI:
         inference_frames_dir = public_frames_inference_dir_with_video_name(
             video_name)
         yolo_dir = public_yolo_dir_with_video_name(video_name)
+        coco_dir = public_coco_dir_with_video_name(video_name)
 
         # Ensure directories exist
         inference_frames_dir.mkdir(parents=True, exist_ok=True)
         yolo_dir.mkdir(parents=True, exist_ok=True)
+        coco_dir.mkdir(parents=True, exist_ok=True)
 
         # Clear any existing frames in the inference directory
         for file in inference_frames_dir.glob("*.jpg"):
@@ -255,6 +257,10 @@ class InferenceAPI:
 
         # Clear any existing YOLO annotations
         for file in yolo_dir.glob("*.txt"):
+            file.unlink()
+
+        # Clear any existing COCO annotations
+        for file in coco_dir.glob("*.json"):
             file.unlink()
 
         # Get list of all original frames
@@ -266,6 +272,10 @@ class InferenceAPI:
         # Create a mapping of object IDs to class IDs for YOLO format (starting from 0)
         object_to_class_id = {obj.id: idx for idx,
                               obj in enumerate(objects_with_points)}
+
+        # Create COCO annotations data structure
+        coco_data = create_coco_annotations_structure(
+            objects_with_points, base_frames)
 
         # Process each object, adding its points to the predictor
         for obj in objects_with_points:
@@ -316,6 +326,8 @@ class InferenceAPI:
 
             # Prepare YOLO annotations for this frame
             yolo_annotations = []
+            # Prepare COCO annotations for this frame
+            coco_annotations = []
 
             # Process each object's mask for this frame
             for i, obj_id in enumerate(out_obj_ids):
@@ -334,6 +346,20 @@ class InferenceAPI:
                     mask, frame_img.shape[1], frame_img.shape[0])
                 if any(yolo_bbox):  # Only add if not all zeros
                     yolo_annotations.append((class_id, *yolo_bbox))
+
+                # Get COCO format bounding box and add to annotations
+                coco_bbox = mask_to_coco_bbox(mask)
+                if any(coco_bbox):  # Only add if not all zeros
+                    # Get category ID based on object name (merged objects with same name)
+                    category_id = get_category_id_by_name(
+                        obj.name, coco_data['categories'])
+                    coco_annotations.append({
+                        'image_id': out_frame_idx + 1,  # COCO uses 1-based indexing
+                        'category_id': category_id,
+                        'bbox': coco_bbox,
+                        'area': coco_bbox[2] * coco_bbox[3],  # width * height
+                        'iscrowd': 0
+                    })
 
                 # Convert hex color to BGR (for OpenCV)
                 try:
@@ -358,11 +384,17 @@ class InferenceAPI:
             save_yolo_annotations(original_frame_path,
                                   yolo_annotations, yolo_dir)
 
+            # Add COCO annotations to the main structure
+            coco_data['annotations'].extend(coco_annotations)
+
             logger.info(
-                f"Saved inference frame and YOLO annotations for {original_frame_path.name}")
+                f"Saved inference frame, YOLO and COCO annotations for {original_frame_path.name}")
 
         # After all frames are processed, create data.yml file with class mappings
         create_yolo_data_yaml(objects_with_points, yolo_dir)
+
+        # Save COCO annotations JSON file
+        save_coco_annotations(coco_data, coco_dir, video_name)
 
         # Create video from inference frames
         construct_video_from_inference_frames(
