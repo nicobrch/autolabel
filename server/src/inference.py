@@ -269,9 +269,13 @@ class InferenceAPI:
         # Initialize SAM2 state using base frames directory
         self.initialize_state(base_frames_dir)
 
-        # Create a mapping of object IDs to class IDs for YOLO format (starting from 0)
-        object_to_class_id = {obj.id: idx for idx,
-                              obj in enumerate(objects_with_points)}
+        # Create a mapping of object names to class IDs for YOLO format (starting from 0)
+        # Group objects by name to ensure same-named objects get the same class ID
+        unique_object_names = list(
+            set(obj.name for obj in objects_with_points))
+        unique_object_names.sort()  # Sort for consistent ordering
+        name_to_class_id = {name: idx for idx,
+                            name in enumerate(unique_object_names)}
 
         # Create COCO annotations data structure
         coco_data = create_coco_annotations_structure(
@@ -334,14 +338,15 @@ class InferenceAPI:
                 # Convert mask logits to binary mask
                 mask = (out_mask_logits[i] > 0.0).cpu().numpy().squeeze()
 
-                # Get the object to retrieve its color
+                # Get the object to retrieve its color and name
                 obj = next(
                     (o for o in objects_with_points if o.id == obj_id), None)
                 if not obj:
                     continue
 
                 # Get YOLO format bounding box and add to annotations
-                class_id = object_to_class_id.get(obj_id, 0)
+                # Use name-based class ID instead of object ID
+                class_id = name_to_class_id.get(obj.name, 0)
                 yolo_bbox = mask_to_yolo_bbox(
                     mask, frame_img.shape[1], frame_img.shape[0])
                 if any(yolo_bbox):  # Only add if not all zeros
@@ -391,7 +396,8 @@ class InferenceAPI:
                 f"Saved inference frame, YOLO and COCO annotations for {original_frame_path.name}")
 
         # After all frames are processed, create data.yml file with class mappings
-        create_yolo_data_yaml(objects_with_points, yolo_dir)
+        # Pass unique names instead of all objects to avoid duplicates
+        create_yolo_data_yaml(unique_object_names, yolo_dir)
 
         # Save COCO annotations JSON file
         save_coco_annotations(coco_data, coco_dir, video_name)

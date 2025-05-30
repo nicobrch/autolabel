@@ -775,17 +775,26 @@ def hex_to_rgb(hex_color: str) -> tuple:
         raise ValueError("Invalid hex color format")
 
 
-def create_yolo_data_yaml(objects: list, output_dir: Path) -> None:
+def create_yolo_data_yaml(object_names: Union[list, List[str]], output_dir: Path) -> None:
     """
     Create a data.yml file for YOLO training that maps class IDs to names.
 
     Args:
-        objects: List of Object instances
+        object_names: List of unique object names or Object instances
         output_dir: Directory to save the YAML file
     """
     try:
+        # Handle both list of strings and list of Object instances for backward compatibility
+        if object_names and hasattr(object_names[0], 'name'):
+            # If it's a list of Object instances, extract unique names
+            unique_names = list(set(obj.name for obj in object_names))
+            unique_names.sort()  # Sort for consistent ordering
+        else:
+            # If it's already a list of strings, use as is
+            unique_names = sorted(list(set(object_names)))
+
         # Create mapping of class index to object name
-        names = {idx: obj.name for idx, obj in enumerate(objects)}
+        names = {idx: name for idx, name in enumerate(unique_names)}
 
         # Create YAML content
         yaml_content = {
@@ -800,7 +809,8 @@ def create_yolo_data_yaml(objects: list, output_dir: Path) -> None:
             yaml.dump(yaml_content, f,
                       default_flow_style=False, sort_keys=False)
 
-        logger.info(f"Created YOLO data.yml file at {yaml_file}")
+        logger.info(
+            f"Created YOLO data.yml file at {yaml_file} with {len(names)} unique classes")
     except Exception as e:
         logger.error(f"Error creating YOLO data.yml file: {e}")
 

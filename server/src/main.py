@@ -362,14 +362,6 @@ async def create_object(
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    # Check if object with same name already exists for this video
-    existing_object = db.query(Object).filter(
-        Object.video_id == video_id, Object.name == name).first()
-
-    if existing_object:
-        raise HTTPException(
-            status_code=400, detail="Object with this name already exists for this video")
-
     # If no color provided, generate a random one
     if not color:
         color = random_color()
