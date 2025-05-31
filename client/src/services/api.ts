@@ -563,3 +563,23 @@ export async function deleteProject(projectId: string): Promise<void> {
     throw new Error(errorDetail);
   }
 }
+
+export const updateProject = async (
+  projectId: number,
+  data: { name: string; description?: string },
+): Promise<ProjectData> => {
+  const response = await fetch(`${apiUrl}/projects/${projectId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Failed to update project");
+  }
+
+  return response.json();
+};

@@ -28,6 +28,8 @@ import {
 } from "../ui/dropdown-menu";
 import { useState } from "react";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
+import { EditProjectForm } from "./EditProjectForm";
+import { Dialog } from "../ui/dialog";
 
 interface ProjectCardProps {
   id: number;
@@ -45,6 +47,7 @@ export function ProjectCard({
   videoCount = 0,
 }: ProjectCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   return (
     <Card>
@@ -70,7 +73,7 @@ export function ProjectCard({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
@@ -90,6 +93,16 @@ export function ProjectCard({
           </DropdownMenu>
         </div>
       </CardHeader>
+
+      {/* Edit Project Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <EditProjectForm
+          projectId={id}
+          projectName={name}
+          projectDescription={description}
+          setIsOpen={setIsEditDialogOpen}
+        />
+      </Dialog>
 
       {/* Delete Project Dialog */}
       <DeleteProjectDialog
