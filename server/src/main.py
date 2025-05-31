@@ -16,6 +16,7 @@ import uvicorn
 from fastapi.staticfiles import StaticFiles
 from os.path import abspath
 from sqlalchemy import exists
+from datetime import datetime, timezone
 
 app = FastAPI(
     title="AutoLabel API",
@@ -89,6 +90,51 @@ async def create_project(name: str = Body(...), description: str = Body(None), d
     db.commit()
     db.refresh(new_project)
     return sqlalchemy_to_dict(new_project)
+
+
+@app.put("/api/v1/projects/{project_id}", response_model=dict)
+async def update_project(
+    project_id: int,
+    name: Optional[str] = Body(None),
+    description: Optional[str] = Body(None),
+    db: Session = Depends(get_db)
+):
+    # Check if project exists
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # If name is provided, check for conflicts with other projects
+    if name is not None:
+        existing_project = db.query(Project).filter(
+            Project.name == name,
+            Project.id != project_id  # Exclude current project
+        ).first()
+        if existing_project:
+            raise HTTPException(
+                status_code=400, detail="Project with this name already exists")
+        project.name = name
+
+    # Update description if provided
+    if description is not None:
+        project.description = description
+
+    # Update the timestamp
+    project.updated_at = datetime.now(timezone.utc)
+
+    try:
+        db.commit()
+        db.refresh(project)
+        logger.info(
+            f"Updated project {project_id}: name='{project.name}', description='{project.description}'")
+        return sqlalchemy_to_dict(project)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update project {project_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update project: {str(e)}"
+        )
 
 
 @app.delete("/api/v1/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
