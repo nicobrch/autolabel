@@ -454,6 +454,46 @@ export function downloadCocoDataset(videoId: string): void {
 }
 
 /**
+ * Requests the server to generate and then download a YOLO segmentation dataset ZIP file
+ * @returns A promise that resolves when the ZIP file is ready for download
+ */
+export async function prepareYoloSegDatasetDownload(
+  videoId: string,
+): Promise<boolean> {
+  try {
+    // First make a HEAD request to check if the endpoint is ready
+    const checkResponse = await fetch(
+      `${apiUrl}/videos/${videoId}/download-yolo-seg-dataset`,
+      {
+        method: "HEAD",
+      },
+    );
+
+    if (!checkResponse.ok) {
+      throw new Error(`Server not ready: ${checkResponse.status}`);
+    }
+
+    // If HEAD request is successful, trigger the download
+    downloadYoloSegDataset(videoId);
+    return true;
+  } catch (error) {
+    console.error("Error preparing YOLO segmentation dataset download:", error);
+    throw error;
+  }
+}
+
+/**
+ * Initiates a download of the YOLO segmentation dataset for the specified video
+ */
+export function downloadYoloSegDataset(videoId: string): void {
+  // Using window.open to trigger a file download in a new tab
+  window.open(
+    `${apiUrl}/videos/${videoId}/download-yolo-seg-dataset`,
+    "_blank",
+  );
+}
+
+/**
  * Deletes the last point added to the specified object
  */
 export async function deleteLastPoint(

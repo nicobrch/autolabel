@@ -7,14 +7,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
-  Download,
   Nut,
   Box,
-  Drama,
   Brain,
   Gauge,
   TableOfContents,
   Clock2,
+  SquareDashedMousePointer,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router";
 import { ContentHeader } from "@/components/layout/ContentHeader";
@@ -24,6 +23,7 @@ import {
   getInferenceThumbnailUrl,
   downloadYoloDataset,
   downloadCocoDataset,
+  downloadYoloSegDataset,
   fetchInferenceResults,
 } from "@/services/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -122,6 +122,19 @@ export default function VideoLabeledPreview() {
     },
   });
 
+  // Create a mutation for downloading YOLO segmentation dataset
+  const downloadYoloSegMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoId) throw new Error("Video ID is required");
+      return await downloadYoloSegDataset(videoId);
+    },
+    onError: (error) => {
+      toast.error("Download error", {
+        description: `YOLO segmentation download failed ${error} Please try again.`,
+      });
+    },
+  });
+
   const handleDownloadYolo = () => {
     if (!videoId) {
       toast.error("Video ID missing", {
@@ -140,6 +153,16 @@ export default function VideoLabeledPreview() {
       return;
     }
     downloadCocoMutation.mutate();
+  };
+
+  const handleDownloadYoloSeg = () => {
+    if (!videoId) {
+      toast.error("Video ID missing", {
+        description: "Video ID is missing. Please try again.",
+      });
+      return;
+    }
+    downloadYoloSegMutation.mutate();
   };
 
   return (
@@ -246,7 +269,7 @@ export default function VideoLabeledPreview() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="model-checkpoint">Labels</Label>
+                <Label htmlFor="model-checkpoint">Download Labels</Label>
                 <Button
                   className="w-full"
                   variant="outline"
@@ -256,29 +279,27 @@ export default function VideoLabeledPreview() {
                   <Nut className="h-4 w-4 mr-2" />
                   {downloadCocoMutation.isPending
                     ? "Downloading..."
-                    : "Download COCO labels"}
+                    : "COCO 1.0"}
                 </Button>
                 <Button
                   className="w-full"
                   onClick={handleDownloadYolo}
                   disabled={downloadYoloMutation.isPending || !videoId}
                 >
-                  <Download className="h-4 w-4 mr-2" />
+                  <Box className="h-4 w-4 mr-2" />
                   {downloadYoloMutation.isPending
                     ? "Downloading..."
-                    : "Download YOLO labels"}
+                    : "Ultralytics YOLO 1.0 Detection"}
                 </Button>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="model-checkpoint">Segmentation</Label>
-                <Button className="w-full" variant="outline">
-                  <Box className="h-4 w-4 mr-2" />
-                  Download Video Preview
-                </Button>
-                <Button className="w-full" variant="secondary">
-                  <Drama className="h-4 w-4 mr-2" />
-                  Download Object Masks
+                <Button
+                  className="w-full"
+                  onClick={handleDownloadYoloSeg}
+                  disabled={downloadYoloSegMutation.isPending || !videoId}
+                >
+                  <SquareDashedMousePointer className="h-4 w-4 mr-2" />
+                  {downloadYoloSegMutation.isPending
+                    ? "Downloading..."
+                    : "Ultralytics YOLO 1.0 Segmentation"}
                 </Button>
               </div>
             </CardContent>
