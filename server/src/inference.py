@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import exists
 from db import get_db
 from models import Object, Point, Frame, Mask, Video
-from utils import construct_video_from_inference_frames, create_coco_annotations_structure, create_yolo_data_yaml, get_category_id_by_name, get_frames_list, mask_to_coco_bbox, mask_to_yolo_bbox, public_coco_dir_with_video_name, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_yolo_dir_with_video_name, save_coco_annotations, save_yolo_annotations, serialize_mask, logger, hex_to_rgb
+from utils import construct_video_from_inference_frames, create_coco_annotations_structure, create_yolo_data_yaml, get_category_id_by_name, get_frames_list, mask_to_coco_bbox, mask_to_yolo_bbox, public_coco_dir_with_video_name, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_yolo_dir_with_video_name, public_yolo_seg_dir_with_video_name, save_coco_annotations, save_yolo_annotations, save_yolo_seg_annotations, serialize_mask, logger, hex_to_rgb
 from sam2.build_sam import build_sam2_video_predictor
 import os
 
@@ -281,21 +281,31 @@ class InferenceAPI:
         coco_data = create_coco_annotations_structure(
             objects_with_points, base_frames)
 
-        # Process each object, adding its points to the predictor
+        # Create directory for YOLO segmentation format
+        yolo_seg_dir = public_yolo_seg_dir_with_video_name(video_name)
+        yolo_seg_dir.mkdir(parents=True, exist_ok=True)
+
+        # Clear any existing YOLO segmentation annotations
+        for file in yolo_seg_dir.glob("*.txt"):
+            file.unlink()
+
+        # *** FIX: Add all objects' points to the SAM2 predictor before propagation ***
+        # Register each object's points with the SAM2 predictor
         for obj in objects_with_points:
             # Get all points for this object
             points = db.query(Point).filter_by(object_id=obj.id).all()
             if not points:
-                logger.warning(
-                    f"No points found for object ID {obj.id}, skipping")
+                logger.warning(f"Object {obj.id} has no points, skipping")
                 continue
 
-            # Prepare data for SAM2
+            # Prepare points array and labels array for SAM2
             points_array = np.array([[p.x, p.y]
                                     for p in points], dtype=np.float32)
             labels_array = np.array([p.label for p in points], dtype=np.int32)
 
             # Add points to the predictor
+            logger.info(
+                f"Adding {len(points)} points for object {obj.id} to SAM2 predictor")
             self.predictor.add_new_points_or_box(
                 inference_state=self.inference_state,
                 frame_idx=0,  # First frame
@@ -304,7 +314,7 @@ class InferenceAPI:
                 labels=labels_array,
             )
 
-        # Propagate masks through video frames
+        # Now propagate masks through video frames
         for out_frame_idx, out_obj_ids, out_mask_logits in self.predictor.propagate_in_video(
             inference_state=self.inference_state,
             max_frame_num_to_track=None,  # Process all frames
@@ -330,6 +340,8 @@ class InferenceAPI:
 
             # Prepare YOLO annotations for this frame
             yolo_annotations = []
+            # Prepare YOLO segmentation annotations for this frame
+            yolo_seg_annotations = []
             # Prepare COCO annotations for this frame
             coco_annotations = []
 
@@ -351,6 +363,35 @@ class InferenceAPI:
                     mask, frame_img.shape[1], frame_img.shape[0])
                 if any(yolo_bbox):  # Only add if not all zeros
                     yolo_annotations.append((class_id, *yolo_bbox))
+
+                    # Also generate YOLO segmentation format (polygon points)
+                    contours, _ = cv2.findContours(
+                        mask.astype(np.uint8),
+                        cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_SIMPLE
+                    )
+
+                    if contours and len(contours) > 0:
+                        # Find the largest contour by area
+                        largest_contour = max(contours, key=cv2.contourArea)
+
+                        # Simplify the contour to reduce points while maintaining shape
+                        epsilon = 0.005 * cv2.arcLength(largest_contour, True)
+                        approx_contour = cv2.approxPolyDP(
+                            largest_contour, epsilon, True)
+
+                        # Convert to normalized coordinates for YOLO format
+                        img_height, img_width = frame_img.shape[:2]
+                        normalized_points = []
+
+                        for point in approx_contour.reshape(-1, 2):
+                            x_norm = point[0] / img_width
+                            y_norm = point[1] / img_height
+                            normalized_points.extend([x_norm, y_norm])
+
+                        # Add the class_id, bbox, and polygon points to segmentation annotations
+                        yolo_seg_annotations.append(
+                            (class_id, *yolo_bbox, *normalized_points))
 
                 # Get COCO format bounding box and add to annotations
                 coco_bbox = mask_to_coco_bbox(mask)
@@ -389,11 +430,15 @@ class InferenceAPI:
             save_yolo_annotations(original_frame_path,
                                   yolo_annotations, yolo_dir)
 
+            # Save YOLO segmentation annotations for this frame
+            save_yolo_seg_annotations(original_frame_path,
+                                      yolo_seg_annotations, yolo_seg_dir)
+
             # Add COCO annotations to the main structure
             coco_data['annotations'].extend(coco_annotations)
 
             logger.info(
-                f"Saved inference frame, YOLO and COCO annotations for {original_frame_path.name}")
+                f"Saved inference frame, YOLO, YOLO segmentation, and COCO annotations for {original_frame_path.name}")
 
         # After all frames are processed, create data.yml file with class mappings
         # Pass unique names instead of all objects to avoid duplicates
