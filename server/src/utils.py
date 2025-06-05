@@ -57,6 +57,14 @@ def public_yolo_dir_with_video_name(video_name: str) -> Path:
     return Path(f"public/videos/{video_name}/yolo")
 
 
+def public_yolo_seg_dir_with_video_name(video_name: str) -> Path:
+    """
+    Returns the path to the YOLO segmentation annotations directory for a video.
+    """
+    from pathlib import Path
+    return Path(f"public/videos/{video_name}/yolo_seg")
+
+
 def time_to_seconds(time_str: str) -> float:
     """
     Convert time string in format "HH:MM:SS.MS" to seconds (float).
@@ -775,13 +783,16 @@ def hex_to_rgb(hex_color: str) -> tuple:
         raise ValueError("Invalid hex color format")
 
 
-def create_yolo_data_yaml(object_names: Union[list, List[str]], output_dir: Path) -> None:
+def create_yolo_data_yaml(object_names: Union[list, List[str]], output_dir: Optional[Path] = None) -> Optional[str]:
     """
     Create a data.yml file for YOLO training that maps class IDs to names.
 
     Args:
         object_names: List of unique object names or Object instances
-        output_dir: Directory to save the YAML file
+        output_dir: Directory to save the YAML file. If None, returns the content as a string.
+
+    Returns:
+        If output_dir is None, returns the YAML content as a string, otherwise None
     """
     try:
         # Handle both list of strings and list of Object instances for backward compatibility
@@ -802,17 +813,28 @@ def create_yolo_data_yaml(object_names: Union[list, List[str]], output_dir: Path
             'names': names,    # class names
         }
 
-        # Save to file
-        yaml_file = output_dir / "data.yml"
+        # If output_dir is provided, save to file
+        if output_dir:
+            # Save to file
+            yaml_file = output_dir / "data.yml"
 
-        with open(yaml_file, 'w') as f:
-            yaml.dump(yaml_content, f,
-                      default_flow_style=False, sort_keys=False)
+            with open(yaml_file, 'w') as f:
+                yaml.dump(yaml_content, f,
+                          default_flow_style=False, sort_keys=False)
 
-        logger.info(
-            f"Created YOLO data.yml file at {yaml_file} with {len(names)} unique classes")
+            logger.info(
+                f"Created YOLO data.yml file at {yaml_file} with {len(names)} unique classes")
+            return None
+        else:
+            # Return YAML content as string
+            return yaml.dump(yaml_content, default_flow_style=False, sort_keys=False)
+
     except Exception as e:
         logger.error(f"Error creating YOLO data.yml file: {e}")
+        if not output_dir:
+            # Return a minimal valid YAML if we're supposed to return a string
+            return "classes: 0\nnames: {}\n"
+        return None
 
 
 def create_yolo_dataset_zip(video_id: int, db: Session = next(get_db())) -> Optional[str]:
@@ -1146,3 +1168,104 @@ def create_coco_dataset_zip(video_id: int, db: Session = next(get_db())) -> Opti
     except Exception as e:
         logger.error(f"Error creating COCO dataset ZIP: {e}")
         return None
+
+
+def save_yolo_seg_annotations(frame_path: Path, annotations: list, output_dir: Path) -> None:
+    """
+    Save YOLO segmentation annotations for a frame.
+    Format: class_id x_center y_center width height x1 y1 x2 y2 ... xn yn
+    """
+    # Create annotation file name from frame path
+    annotation_file = output_dir / f"{frame_path.stem}.txt"
+
+    # Write annotations to file
+    with open(annotation_file, 'w') as f:
+        for annotation in annotations:
+            # Convert all values to strings and join with spaces
+            line = ' '.join(map(str, annotation))
+            f.write(f"{line}\n")
+
+
+def create_yolo_seg_dataset_zip(video_id: int, db=None) -> str:
+    """
+    Create a ZIP file containing YOLO segmentation format dataset for a video.
+
+    Args:
+        video_id: ID of the video
+        db: Database session
+
+    Returns:
+        Path to the generated ZIP file
+    """
+
+    if db is None:
+        from db import get_db
+        db = next(get_db())
+
+    # Get the video from the database
+    from models import Video
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise ValueError(f"Video with ID {video_id} not found")
+
+    # Get the video name
+    video_name = Path(video.file_path).stem
+
+    # Define paths - USE BASE FRAMES INSTEAD OF INFERENCE FRAMES
+    base_frames_dir = public_frames_base_dir_with_video_name(video_name)
+    yolo_seg_dir = public_yolo_seg_dir_with_video_name(video_name)
+
+    # Create a temporary ZIP file
+    with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_file:
+        zip_path = tmp_file.name
+
+    # Create the ZIP file with frames and annotations
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Create data.yaml file with class information
+        from models import Object
+        from sqlalchemy import exists
+        from models import Point
+
+        objects = db.query(Object).filter(
+            Object.video_id == video_id,
+            exists().where(Point.object_id == Object.id)
+        ).all()
+
+        # Extract unique object names
+        unique_object_names = sorted(list(set(obj.name for obj in objects)))
+
+        # Create and add data.yaml - call with no output_dir to get string content
+        data_yaml_content = create_yolo_data_yaml(unique_object_names)
+
+        # Add images directory - SIMPLER DIRECTORY STRUCTURE WITHOUT 'train' SUBDIRECTORY
+        images_dir = "images"
+        labels_dir = "labels"
+
+        # Add data.yaml to the zip
+        zipf.writestr("data.yaml", data_yaml_content)
+
+        # Get sorted list of base frames
+        base_frames = sorted(base_frames_dir.glob("*.jpg"))
+
+        # Add each frame and its annotation
+        for frame_path in base_frames:
+            # Add the video name as prefix to the filename
+            prefixed_name = f"{video_name}_{frame_path.name}"
+
+            # Add the image to the ZIP with prefixed name
+            zipf.write(
+                frame_path,
+                f"{images_dir}/{prefixed_name}"
+            )
+
+            # Look for corresponding annotation
+            annotation_path = yolo_seg_dir / f"{frame_path.stem}.txt"
+            if annotation_path.exists():
+                # Add the annotation with prefixed name
+                prefixed_annotation = f"{video_name}_{frame_path.stem}.txt"
+                zipf.write(
+                    annotation_path,
+                    f"{labels_dir}/{prefixed_annotation}"
+                )
+
+    return zip_path
