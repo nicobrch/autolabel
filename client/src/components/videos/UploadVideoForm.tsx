@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getFileNameWithoutExtension } from "@/lib/utils";
-import { z } from "zod";
+import { set, z } from "zod";
 
 // Define validation schema
 const uploadVideoSchema = z.object({
@@ -83,8 +83,7 @@ export function UploadVideoForm({
 
       if (!result.success) {
         // Extract the first validation error message
-        const errorMsg =
-          result.error.errors[0]?.message || "Validation failed";
+        const errorMsg = result.error.errors[0]?.message || "Validation failed";
         setError(errorMsg);
         setIsSubmitting(false);
         return;
@@ -93,6 +92,7 @@ export function UploadVideoForm({
       await uploadVideoFile(parseInt(projectId!), files[0], resolution, fps);
       queryClient.invalidateQueries({ queryKey: ["videos", projectId] }); // Update query key
       setIsOpen(false);
+      setFiles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
