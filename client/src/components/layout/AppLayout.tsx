@@ -7,9 +7,9 @@ export default function AppLayout() {
   return (
     <SidebarProvider className="font-display h-screen">
       <AppSidebar />
-      <div className="flex-1 overflow-hidden h-full">
+      <div className="flex-1 overflow-hidden h-full flex flex-col">
         <Navbar />
-        <div className="h-full overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
       </div>
