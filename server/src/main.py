@@ -2,6 +2,9 @@ import os
 import shutil
 import subprocess
 import uvicorn
+import random
+import string
+import re
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Body, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -238,6 +241,20 @@ async def get_video(video_id: int, db: Session = Depends(get_db)):
     return sqlalchemy_to_dict(video)
 
 
+# Helper functions for video name handling
+def generate_random_suffix(length=5):
+    """Generate a random string of fixed length"""
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+
+
+def sanitize_video_name(name):
+    """Sanitize video name to allow only alphanumeric, hyphen, and underscore characters"""
+    # Remove file extension if present
+    name = os.path.splitext(name)[0]
+    # Replace any non-allowed characters with empty string
+    return re.sub(r'[^a-zA-Z0-9_\-]', '', name)
+
+
 @app.post("/api/v1/videos/upload", response_model=dict)
 async def upload_video(
     file: UploadFile = File(...),
@@ -257,7 +274,16 @@ async def upload_video(
     if not file.content_type.startswith("video/"):
         raise HTTPException(status_code=400, detail="File must be a video")
 
-    video_name = file.filename.split(".")[0]
+    # Sanitize the video name and add a random suffix
+    original_name = os.path.splitext(file.filename)[0]
+    sanitized_name = sanitize_video_name(original_name)
+    random_suffix = generate_random_suffix()
+    video_name = f"{sanitized_name}_{random_suffix}"
+
+    # Get the file extension
+    file_extension = os.path.splitext(file.filename)[1]
+    # Create new filename with sanitized name and suffix
+    new_filename = f"{video_name}{file_extension}"
 
     single_video_dir = public_videos_dir_with_video_name(video_name)
     single_video_dir.mkdir(parents=True, exist_ok=True)
@@ -270,7 +296,7 @@ async def upload_video(
     thumbnail_dir.mkdir(parents=True, exist_ok=True)
 
     # Save the original file temporarily
-    temp_file_path = thumbnail_dir / f"temp_{file.filename}"
+    temp_file_path = thumbnail_dir / f"temp_{new_filename}"
     try:
         with open(temp_file_path, "wb") as buffer:
             contents = await file.read()
@@ -280,7 +306,7 @@ async def upload_video(
             status_code=500, detail=f"Failed to save video file: {e}")
 
     # Define the final file path
-    video_path = base_frames_dir / file.filename
+    video_path = base_frames_dir / new_filename
 
     try:
         # Base ffmpeg command
@@ -344,8 +370,8 @@ async def upload_video(
     # Create a new video entry in the database with metadata
     new_video = Video(
         project_id=project_id,
-        file_path=str(video_path),  # Changed from video_path to file_path
-        file_name=file.filename,
+        file_path=str(video_path),
+        file_name=new_filename,  # Use the new filename with sanitized name and suffix
         file_size=file_size,
         width=width,
         height=height,
@@ -356,7 +382,7 @@ async def upload_video(
     db.add(new_video)
     db.commit()
     db.refresh(new_video)
-    logger.info(f"Video {file.filename} uploaded and metadata extracted.")
+    logger.info(f"Video {new_filename} uploaded and metadata extracted.")
 
     # Extract frames at the specified target FPS
     try:
