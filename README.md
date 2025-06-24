@@ -31,6 +31,7 @@ docker-compose down
 ```
 
 After starting the containers:
+
 - Frontend: http://localhost:80
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
@@ -77,7 +78,3 @@ autolabel/
 ├── docker-compose.yml    # Docker configuration
 └── README.md             # This file
 ```
-
-## License
-
-[License information here]
