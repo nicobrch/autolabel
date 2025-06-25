@@ -623,3 +623,24 @@ export const updateProject = async (
 
   return response.json();
 };
+
+export async function fetchProjectById(
+  projectId: string | number,
+): Promise<ProjectData> {
+  const response = await fetch(`${apiUrl}/projects/${projectId}`);
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error("Fetch project error:", errorData);
+    throw new Error(
+      `HTTP error! status: ${response.status} - Failed to fetch project ${projectId}`,
+    );
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    console.error("Failed to parse project JSON:", e);
+    throw new Error("Received invalid data format from server.");
+  }
+}
