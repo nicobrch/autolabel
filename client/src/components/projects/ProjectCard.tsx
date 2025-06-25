@@ -11,9 +11,8 @@ import {
 import { NavLink } from "react-router";
 import {
   Calendar,
-  Download,
   FileVideo,
-  ArrowRightFromLine,
+  Video,
   EllipsisVertical,
   Pencil,
   Trash2,
@@ -77,10 +76,6 @@ export function ProjectCard({
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
@@ -128,15 +123,8 @@ export function ProjectCard({
       <CardFooter className="flex justify-between gap-2 px-4">
         <Button variant="default" size="sm" className="flex-1" asChild>
           <NavLink to={`/projects/${id}`}>
-            <ArrowRightFromLine className="mr-1.5 h-4 w-4" />
-            Videos
-          </NavLink>
-        </Button>
-
-        <Button variant="outline" size="sm" className="flex-1" asChild>
-          <NavLink to={`#`}>
-            <Download className="mr-1.5 h-4 w-4" />
-            Download
+            <Video className="mr-1.5 h-4 w-4" />
+            Project Videos
           </NavLink>
         </Button>
       </CardFooter>

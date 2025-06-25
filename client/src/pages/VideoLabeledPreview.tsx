@@ -264,22 +264,20 @@ export default function VideoLabeledPreview() {
           <Card>
             <CardHeader>
               <CardTitle>
-                <TypographyH4>Download Results</TypographyH4>
+                <TypographyH4>Download Dataset</TypographyH4>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="model-checkpoint">Download Labels</Label>
                 <Button
                   className="w-full"
-                  variant="outline"
                   onClick={handleDownloadCoco}
                   disabled={downloadCocoMutation.isPending || !videoId}
                 >
                   <Nut className="h-4 w-4 mr-2" />
                   {downloadCocoMutation.isPending
                     ? "Downloading..."
-                    : "COCO 1.0"}
+                    : "COCO 1.0 Bounding Box"}
                 </Button>
                 <Button
                   className="w-full"
