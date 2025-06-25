@@ -89,7 +89,7 @@ export function Navbar() {
       title = `Label Results for ${videoName}`;
     } else if (projectName) {
       // Fall back to project name for other project routes
-      title = `${projectName} Videos`;
+      title = `${projectName} Project Videos`;
     } else {
       title = "Project";
     }
