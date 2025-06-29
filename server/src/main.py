@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import exists
 from typing import List, Optional
 from db import get_db
-from models import Project, Video, Object, Point, VideoInference
+from models import Project, Video, Object, Point, VideoInference, Mask
 from utils import create_yolo_dataset_zip, create_coco_dataset_zip, logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
 from inference import InferenceAPI
 from pathlib import Path
@@ -441,35 +441,54 @@ async def create_object(
         raise HTTPException(
             status_code=400, detail="Color must be in hex format #RRGGBB")
 
-    # Create new object with color
-    new_object = Object(name=name, video_id=video_id, color=color)
-    db.add(new_object)
-    db.commit()
-    db.refresh(new_object)
+    # Get project ID for this video
+    project_id = video.project_id
 
-    return sqlalchemy_to_dict(new_object)
+    # Get all videos in this project
+    project_videos = db.query(Video).filter(
+        Video.project_id == project_id).all()
+
+    # Create objects for all videos in the project with the same name and color
+    created_objects = []
+    for proj_video in project_videos:
+        # Check if this video already has an object with this name
+        existing_object = db.query(Object).filter(
+            Object.video_id == proj_video.id,
+            Object.name == name
+        ).first()
+
+        if existing_object:
+            logger.info(
+                f"Object '{name}' already exists for video {proj_video.id}")
+            # If we're processing the requested video, add it to created_objects
+            if proj_video.id == video_id:
+                created_objects.append(existing_object)
+        else:
+            # Create new object with the same name and color
+            new_object = Object(name=name, video_id=proj_video.id, color=color)
+            db.add(new_object)
+            db.commit()
+            db.refresh(new_object)
+
+            # If we're processing the requested video, add it to created_objects
+            if proj_video.id == video_id:
+                created_objects.append(new_object)
+
+            logger.info(
+                f"Created object '{name}' for video {proj_video.id} in project {project_id}")
+
+    # Return the object created for the requested video
+    if created_objects:
+        return sqlalchemy_to_dict(created_objects[0])
+    else:
+        raise HTTPException(status_code=500, detail="Failed to create object")
 
 
-# Get all objects for a given video
-@app.get("/api/v1/videos/{video_id}/objects", response_model=List[dict])
-async def list_objects(video_id: int, db: Session = Depends(get_db)):
-    # Check if video exists
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
-
-    # Get all objects for this video
-    objects = db.query(Object).filter(Object.video_id == video_id).all()
-    return [sqlalchemy_to_dict(obj) for obj in objects]
-
-
-# Update an object
-@app.put("/api/v1/videos/{video_id}/objects/{object_id}", response_model=dict)
-async def update_object(
+# Delete an object from a specific video
+@app.delete("/api/v1/videos/{video_id}/objects/{object_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_object(
     video_id: int,
     object_id: int,
-    name: str = Body(...),
-    color: Optional[str] = Body(None),
     db: Session = Depends(get_db)
 ):
     # Check if video exists
@@ -487,15 +506,26 @@ async def update_object(
         raise HTTPException(
             status_code=400, detail="Object does not belong to this video")
 
-    # Update object name and color
-    obj.name = name
-    if color:
-        obj.color = color
+    try:
+        # Delete any points associated with this object
+        db.query(Point).filter(Point.object_id == object_id).delete()
 
-    db.commit()
-    db.refresh(obj)
+        # Delete any masks associated with this object
+        db.query(Mask).filter(Mask.object_id == object_id).delete()
 
-    return sqlalchemy_to_dict(obj)
+        # Delete the object
+        db.delete(obj)
+        db.commit()
+
+        logger.info(f"Deleted object {object_id} from video {video_id}")
+        return {"status": "success", "message": "Object deleted successfully"}
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete object {object_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete object: {str(e)}"
+        )
 
 
 # Endpoint to segment objects in a video frame using SAM2

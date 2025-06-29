@@ -446,21 +446,64 @@ def create_object(video_id: int, name: str) -> Object:
     # Convert to hex string format (#RRGGBB)
     color = f"#{r:02x}{g:02x}{b:02x}"
 
-    new_object = Object(
-        video_id=video_id,
-        name=name,
-        color=color,
-        mask=None
-    )
-
     db = next(get_db())
-    db.add(new_object)
-    db.commit()
-    db.refresh(new_object)
 
-    logger.info(
-        f"Created new object '{name}' with ID {new_object.id} for video {video_id}")
-    return new_object
+    # Get the video to find its project
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        logger.error(f"Video with ID {video_id} not found in database")
+        raise ValueError(f"Video with ID {video_id} not found in database.")
+
+    # Get all videos in the project
+    project_videos = db.query(Video).filter(
+        Video.project_id == video.project_id).all()
+
+    # Create object for the requested video and track it for return
+    created_object = None
+
+    # Create the same object for all videos in the project
+    for proj_video in project_videos:
+        # Check if an object with this name already exists for this video
+        existing_object = db.query(Object).filter(
+            Object.video_id == proj_video.id,
+            Object.name == name
+        ).first()
+
+        if not existing_object:
+            # Create new object
+            new_object = Object(
+                video_id=proj_video.id,
+                name=name,
+                color=color,
+                mask=None
+            )
+            db.add(new_object)
+
+            # If this is the requested video, save the object for return
+            if proj_video.id == video_id:
+                created_object = new_object
+
+            logger.info(
+                f"Created new object '{name}' for video {proj_video.id}")
+        else:
+            # If this is the requested video and the object already exists, use it
+            if proj_video.id == video_id:
+                created_object = existing_object
+                logger.info(
+                    f"Object '{name}' already exists for video {video_id}")
+
+    db.commit()
+
+    # If we found or created an object for the requested video, refresh and return it
+    if created_object:
+        db.refresh(created_object)
+        return created_object
+
+    # This should not happen if the code is working correctly
+    logger.error(
+        f"Failed to create or find object '{name}' for video {video_id}")
+    raise ValueError(
+        f"Failed to create or find object '{name}' for video {video_id}")
 
 
 def serialize_mask(mask: np.ndarray) -> bytes:
