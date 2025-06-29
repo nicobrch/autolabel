@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TypographyH4 } from "@/components/typography/typography";
-import { Plus, Undo2, Eraser, Pen } from "lucide-react";
+import { Plus, Undo2, Eraser, Pen, Trash2 } from "lucide-react";
 import { VideoObject, deleteLastPoint } from "@/services/api";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { CreateObjectForm } from "@/components/video-labeling/CreateObjectForm";
@@ -19,6 +19,7 @@ import { EditObjectForm } from "@/components/video-labeling/EditObjectForm";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useModelStore } from "@/stores/modelStore";
+import { DeleteObjectDialog } from "@/components/video-labeling/DeleteObjectDialog";
 
 interface LabelingOptionsProps {
   selectedObject: string;
@@ -44,6 +45,7 @@ export function LabelingOptions({
 }: LabelingOptionsProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isUndoLoading, setIsUndoLoading] = useState(false);
   const queryClient = useQueryClient();
   const { modelCheckpoint } = useModelStore();
@@ -122,6 +124,34 @@ export function LabelingOptions({
                   videoId={videoId}
                   objectData={selectedObjectData}
                   setIsOpen={setIsEditDialogOpen}
+                />
+              )}
+            </Dialog>
+
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  disabled={!selectedObjectData}
+                  title="Delete Selected Object"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              {selectedObjectData && (
+                <DeleteObjectDialog
+                  videoId={videoId}
+                  objectId={selectedObjectData.id.toString()}
+                  objectName={selectedObjectData.name}
+                  isOpen={isDeleteDialogOpen}
+                  onOpenChange={setIsDeleteDialogOpen}
+                  onDeleted={() => {
+                    // Reset selected object after deletion
+                    if (selectedObject === selectedObjectData.id.toString()) {
+                      onSelectedObjectChange("");
+                    }
+                  }}
                 />
               )}
             </Dialog>

@@ -644,3 +644,19 @@ export async function fetchProjectById(
     throw new Error("Received invalid data format from server.");
   }
 }
+
+/**
+ * Delete an object from a video
+ */
+export async function deleteObject(videoId: string, objectId: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/videos/${videoId}/objects/${objectId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({
+      detail: `HTTP error! status: ${response.status}`,
+    }));
+    throw new Error(errorData.detail || `Failed to delete object: ${response.status}`);
+  }
+}
