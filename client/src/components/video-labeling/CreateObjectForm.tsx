@@ -13,7 +13,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
-import { ColorPicker } from "@/components/ui/color-picker";
+import { ColorPicker, colorPresets } from "@/components/ui/color-picker";
+
+// Helper function to get a random color from the presets
+const getRandomColor = () => {
+  const randomIndex = Math.floor(Math.random() * colorPresets.length);
+  return colorPresets[randomIndex];
+};
 
 interface CreateObjectFormProps {
   videoId: string;
@@ -25,7 +31,7 @@ export function CreateObjectForm({
   setIsOpen,
 }: CreateObjectFormProps) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState("#CDDC39"); // Default yellow color
+  const [color, setColor] = useState(getRandomColor()); // Random color from presets
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -43,7 +49,7 @@ export function CreateObjectForm({
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setName("");
-      setColor("#CDDC39"); // Reset to default color
+      setColor(getRandomColor()); // Reset to a new random color
       setIsSubmitting(false);
     }
   };

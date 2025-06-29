@@ -27,7 +27,7 @@ interface HSV {
 }
 
 // Color presets
-const colorPresets = [
+export const colorPresets = [
   "#F44336",
   "#E91E63",
   "#9C27B0",
