@@ -484,6 +484,26 @@ async def create_object(
         raise HTTPException(status_code=500, detail="Failed to create object")
 
 
+# Add this new GET endpoint to fetch objects for a video
+@app.get("/api/v1/videos/{video_id}/objects", response_model=List[dict])
+async def get_video_objects(video_id: int, db: Session = Depends(get_db)):
+    """
+    Get all objects for a specific video.
+    """
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Get all objects for this video
+    objects = db.query(Object).filter(Object.video_id == video_id).all()
+
+    # Convert to dictionary representation
+    result = [sqlalchemy_to_dict(obj) for obj in objects]
+
+    return result
+
+
 # Delete an object from a specific video
 @app.delete("/api/v1/videos/{video_id}/objects/{object_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_object(
