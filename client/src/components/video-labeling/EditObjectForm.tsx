@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,12 @@ export function EditObjectForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Add useEffect to update form values when objectData changes
+  useEffect(() => {
+    setName(objectData.name);
+    setColor(objectData.color);
+  }, [objectData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
