@@ -660,3 +660,34 @@ export async function deleteObject(videoId: string, objectId: string): Promise<v
     throw new Error(errorData.detail || `Failed to delete object: ${response.status}`);
   }
 }
+
+/**
+ * Clear all points for an object in a video
+ */
+export async function clearObjectPoints(
+  videoId: string, 
+  objectId: string, 
+  checkpoint: string = "tiny"
+): Promise<{ status: string; message: string }> {
+  const response = await fetch(
+    `${apiUrl}/videos/${videoId}/objects/${objectId}/clear-points`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(checkpoint), // Send the string directly, not as an object
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({
+      detail: `HTTP error! status: ${response.status}`,
+    }));
+    throw new Error(
+      errorData.detail || `Failed to clear points: ${response.status}`
+    );
+  }
+
+  return response.json();
+}

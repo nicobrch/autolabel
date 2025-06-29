@@ -12,7 +12,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TypographyH4 } from "@/components/typography/typography";
 import { Plus, Undo2, Eraser, Pen, Trash2 } from "lucide-react";
-import { VideoObject, deleteLastPoint } from "@/services/api";
+import { VideoObject, deleteLastPoint, clearObjectPoints } from "@/services/api";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { CreateObjectForm } from "@/components/video-labeling/CreateObjectForm";
 import { EditObjectForm } from "@/components/video-labeling/EditObjectForm";
@@ -47,6 +47,7 @@ export function LabelingOptions({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isUndoLoading, setIsUndoLoading] = useState(false);
+  const [isClearLoading, setIsClearLoading] = useState(false);
   const queryClient = useQueryClient();
   const { modelCheckpoint } = useModelStore();
 
@@ -78,6 +79,34 @@ export function LabelingOptions({
       });
     } finally {
       setIsUndoLoading(false);
+      setIsVideoProcessing(false);
+    }
+  };
+
+  const handleClearPoints = async () => {
+    if (!selectedObject) return;
+
+    setIsClearLoading(true);
+    setIsVideoProcessing(true);
+    try {
+      await clearObjectPoints(videoId, selectedObject, modelCheckpoint);
+      // Invalidate queries to refresh UI
+      queryClient.invalidateQueries({ queryKey: ["videoObjects", videoId] });
+      // Also invalidate any inference frame data
+      queryClient.invalidateQueries({ queryKey: ["inferenceFrame", videoId] });
+
+      toast.info("Success", {
+        description: "All points cleared successfully",
+      });
+    } catch (error) {
+      toast.error("Error", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to clear points",
+      });
+    } finally {
+      setIsClearLoading(false);
       setIsVideoProcessing(false);
     }
   };
@@ -233,9 +262,13 @@ export function LabelingOptions({
               <Undo2 className="h-4 w-4 mr-2" />
               Undo Last
             </Button>
-            <Button variant="destructive">
+            <Button 
+              variant="destructive"
+              onClick={handleClearPoints}
+              disabled={!selectedObject || isClearLoading}
+            >
               <Eraser className="h-4 w-4 mr-2" />
-              Clear Points
+              {isClearLoading ? "Clearing..." : "Clear Points"}
             </Button>
           </div>
         </div>

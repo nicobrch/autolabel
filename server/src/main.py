@@ -766,6 +766,64 @@ async def remove_last_point(
     return {"status": "success", "message": "Last point removed successfully"}
 
 
+# Endpoint to clear all points from an object and run the inference again
+@app.delete("/api/v1/videos/{video_id}/objects/{object_id}/clear-points", response_model=dict)
+async def clear_object_points(
+    video_id: int,
+    object_id: int,
+    checkpoint: str = Body(
+        "tiny", description="SAM2 model checkpoint to use (tiny, small, base-plus, large)"),
+    db: Session = Depends(get_db)
+):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Check if object exists
+    obj = db.query(Object).filter(Object.id == object_id).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Object not found")
+
+    # Validate that object belongs to this video
+    if obj.video_id != video_id:
+        raise HTTPException(
+            status_code=400, detail="Object does not belong to this video")
+
+    # Remove all points from the object
+    points_to_delete = db.query(Point).filter(
+        Point.object_id == object_id).all()
+
+    if not points_to_delete:
+        raise HTTPException(
+            status_code=404, detail="No points found for this object")
+
+    # Count the number of points to be deleted
+    points_count = len(points_to_delete)
+
+    # Delete all points for this object
+    db.query(Point).filter(Point.object_id == object_id).delete()
+    db.commit()
+    logger.info(f"Removed all {points_count} points from object {object_id}")
+
+    # Clear the masks as well
+    db.query(Mask).filter(Mask.object_id == object_id).delete()
+    db.commit()
+    logger.info(f"Cleared masks for object {object_id}")
+
+    # Draw the updated segmentation masks on the frame (empty for this object now)
+    try:
+        draw_objects_masks_on_frame(video_id, db=db)
+    except Exception as e:
+        logger.error(f"Failed to draw updated masks on frame: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to draw updated masks on frame: {str(e)}"
+        )
+
+    return {"status": "success", "message": f"All {points_count} points removed successfully"}
+
+
 # Endpoint to download the YOLO dataset ZIP file
 @app.get("/api/v1/videos/{video_id}/download-yolo-dataset", response_class=FileResponse)
 async def download_yolo_dataset(video_id: int, db: Session = Depends(get_db)):
