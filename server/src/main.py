@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from sqlalchemy import exists
+from sqlalchemy import exists, func
 from typing import List, Optional
 from db import get_db
 from models import Project, Video, Object, Point, VideoInference, Mask
@@ -386,30 +386,48 @@ async def upload_video(
 
     # Inherit objects from other videos in the same project
     try:
-        # Get all unique object names and their first associated color from other videos in the project
-        other_objects_in_project = db.query(Object.name, Object.color).join(Video).filter(
+        # Get all other videos in the project
+        other_videos_in_project = db.query(Video.id).filter(
             Video.project_id == project_id,
             Video.id != new_video.id
-        ).distinct(Object.name).all()
+        ).all()
+        other_video_ids = [v.id for v in other_videos_in_project]
 
-        # Create these objects for the new video
-        for name, color in other_objects_in_project:
-            # Check if an object with this name already exists for the new video
-            existing_object = db.query(Object).filter(
-                Object.video_id == new_video.id,
-                Object.name == name
-            ).first()
+        if other_video_ids:
+            # Get unique object names in the project
+            unique_object_names = db.query(Object.name).filter(
+                Object.video_id.in_(other_video_ids)
+            ).distinct().all()
+            unique_object_names = [name[0] for name in unique_object_names]
 
-            if not existing_object:
-                inherited_object = Object(
-                    video_id=new_video.id,
-                    name=name,
-                    color=color
-                )
-                db.add(inherited_object)
+            for name in unique_object_names:
+                # Count max occurrences per video
+                max_count = 0
+                for video_id in other_video_ids:
+                    count = db.query(func.count(Object.id)).filter(
+                        Object.video_id == video_id,
+                        Object.name == name
+                    ).scalar() or 0
+                    max_count = max(max_count, count)
+
                 logger.info(
-                    f"Inherited object '{name}' for new video {new_video.id}")
-        db.commit()
+                    f"Inheriting {max_count} instances of object '{name}' with random colors")
+
+                # Create exactly that many objects with random colors
+                for _ in range(max_count):
+                    # Generate a random color for each instance
+                    random_instance_color = random_color()
+
+                    inherited_object = Object(
+                        video_id=new_video.id,
+                        name=name,
+                        color=random_instance_color
+                    )
+                    db.add(inherited_object)
+
+            db.commit()
+            logger.info(f"Inherited objects for new video {new_video.id}")
+
     except Exception as e:
         logger.error(
             f"Failed to inherit objects for new video {new_video.id}: {str(e)}")
