@@ -426,6 +426,7 @@ async def create_object(
     video_id: int,
     name: str = Body(...),
     color: Optional[str] = Body(None),
+    project_wide: bool = Body(True),
     db: Session = Depends(get_db)
 ):
     # Check if video exists
@@ -441,46 +442,45 @@ async def create_object(
         raise HTTPException(
             status_code=400, detail="Color must be in hex format #RRGGBB")
 
-    # Get project ID for this video
-    project_id = video.project_id
-
-    # Get all videos in this project
-    project_videos = db.query(Video).filter(
-        Video.project_id == project_id).all()
+    videos_to_process = []
+    if project_wide:
+        # Get project ID for this video
+        project_id = video.project_id
+        # Get all videos in this project
+        videos_to_process = db.query(Video).filter(
+            Video.project_id == project_id).all()
+    else:
+        # Only process the current video
+        videos_to_process.append(video)
 
     # Create objects for all videos in the project with the same name and color
     created_objects = []
-    for proj_video in project_videos:
-        # Check if this video already has an object with this name
-        existing_object = db.query(Object).filter(
-            Object.video_id == proj_video.id,
-            Object.name == name
-        ).first()
+    for proj_video in videos_to_process:
+        # Create new object with the same name and color
+        new_object = Object(name=name, video_id=proj_video.id, color=color)
+        db.add(new_object)
+        db.commit()
+        db.refresh(new_object)
 
-        if existing_object:
-            logger.info(
-                f"Object '{name}' already exists for video {proj_video.id}")
-            # If we're processing the requested video, add it to created_objects
-            if proj_video.id == video_id:
-                created_objects.append(existing_object)
-        else:
-            # Create new object with the same name and color
-            new_object = Object(name=name, video_id=proj_video.id, color=color)
-            db.add(new_object)
-            db.commit()
-            db.refresh(new_object)
+        # If we're processing the requested video, add it to created_objects
+        if proj_video.id == video_id:
+            created_objects.append(new_object)
 
-            # If we're processing the requested video, add it to created_objects
-            if proj_video.id == video_id:
-                created_objects.append(new_object)
-
-            logger.info(
-                f"Created object '{name}' for video {proj_video.id} in project {project_id}")
+        logger.info(
+            f"Created object '{name}' for video {proj_video.id}")
 
     # Return the object created for the requested video
     if created_objects:
         return sqlalchemy_to_dict(created_objects[0])
     else:
+        # This case can happen if project_wide is false and the object already exists
+        # for the current video. We should find it and return it.
+        existing_object = db.query(Object).filter(
+            Object.video_id == video_id,
+            Object.name == name
+        ).first()
+        if existing_object:
+            return sqlalchemy_to_dict(existing_object)
         raise HTTPException(status_code=500, detail="Failed to create object")
 
 

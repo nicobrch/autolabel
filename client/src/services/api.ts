@@ -209,7 +209,7 @@ export async function fetchVideoObjects(
 
 export async function createVideoObject(
   videoId: string,
-  data: { name: string; color?: string },
+  data: { name: string; color?: string; project_wide?: boolean },
 ): Promise<VideoObject> {
   const response = await fetch(`${apiUrl}/videos/${videoId}/objects`, {
     method: "POST",
@@ -648,16 +648,24 @@ export async function fetchProjectById(
 /**
  * Delete an object from a video
  */
-export async function deleteObject(videoId: string, objectId: string): Promise<void> {
-  const response = await fetch(`${apiUrl}/videos/${videoId}/objects/${objectId}`, {
-    method: 'DELETE',
-  });
+export async function deleteObject(
+  videoId: string,
+  objectId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${apiUrl}/videos/${videoId}/objects/${objectId}`,
+    {
+      method: "DELETE",
+    },
+  );
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({
       detail: `HTTP error! status: ${response.status}`,
     }));
-    throw new Error(errorData.detail || `Failed to delete object: ${response.status}`);
+    throw new Error(
+      errorData.detail || `Failed to delete object: ${response.status}`,
+    );
   }
 }
 
@@ -665,9 +673,9 @@ export async function deleteObject(videoId: string, objectId: string): Promise<v
  * Clear all points for an object in a video
  */
 export async function clearObjectPoints(
-  videoId: string, 
-  objectId: string, 
-  checkpoint: string = "tiny"
+  videoId: string,
+  objectId: string,
+  checkpoint: string = "tiny",
 ): Promise<{ status: string; message: string }> {
   const response = await fetch(
     `${apiUrl}/videos/${videoId}/objects/${objectId}/clear-points`,
@@ -677,7 +685,7 @@ export async function clearObjectPoints(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(checkpoint), // Send the string directly, not as an object
-    }
+    },
   );
 
   if (!response.ok) {
@@ -685,7 +693,7 @@ export async function clearObjectPoints(
       detail: `HTTP error! status: ${response.status}`,
     }));
     throw new Error(
-      errorData.detail || `Failed to clear points: ${response.status}`
+      errorData.detail || `Failed to clear points: ${response.status}`,
     );
   }
 

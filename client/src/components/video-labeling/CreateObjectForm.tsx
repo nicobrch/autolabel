@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/errormsg";
 import { ColorPicker, colorPresets } from "@/components/ui/color-picker";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Helper function to get a random color from the presets
 const getRandomColor = () => {
@@ -32,6 +33,7 @@ export function CreateObjectForm({
 }: CreateObjectFormProps) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(getRandomColor()); // Random color from presets
+  const [isProjectWide, setIsProjectWide] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -42,7 +44,11 @@ export function CreateObjectForm({
     setError(null);
 
     try {
-      await createVideoObject(videoId, { name, color });
+      await createVideoObject(videoId, {
+        name,
+        color,
+        project_wide: isProjectWide,
+      });
       queryClient.invalidateQueries({ queryKey: ["videoObjects", videoId] });
       setIsOpen(false);
     } catch (err) {
@@ -85,6 +91,20 @@ export function CreateObjectForm({
               onChange={setColor}
               className="w-full"
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="project-wide"
+              checked={isProjectWide}
+              onCheckedChange={(checked) => setIsProjectWide(Boolean(checked))}
+            />
+            <label
+              htmlFor="project-wide"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Create for all videos in this project
+            </label>
           </div>
 
           <DialogFooter className="flex justify-end space-x-2 pt-2">
