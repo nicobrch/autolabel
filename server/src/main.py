@@ -384,6 +384,37 @@ async def upload_video(
     db.refresh(new_video)
     logger.info(f"Video {new_filename} uploaded and metadata extracted.")
 
+    # Inherit objects from other videos in the same project
+    try:
+        # Get all unique object names and their first associated color from other videos in the project
+        other_objects_in_project = db.query(Object.name, Object.color).join(Video).filter(
+            Video.project_id == project_id,
+            Video.id != new_video.id
+        ).distinct(Object.name).all()
+
+        # Create these objects for the new video
+        for name, color in other_objects_in_project:
+            # Check if an object with this name already exists for the new video
+            existing_object = db.query(Object).filter(
+                Object.video_id == new_video.id,
+                Object.name == name
+            ).first()
+
+            if not existing_object:
+                inherited_object = Object(
+                    video_id=new_video.id,
+                    name=name,
+                    color=color
+                )
+                db.add(inherited_object)
+                logger.info(
+                    f"Inherited object '{name}' for new video {new_video.id}")
+        db.commit()
+    except Exception as e:
+        logger.error(
+            f"Failed to inherit objects for new video {new_video.id}: {str(e)}")
+        # Not raising an exception here as failing to inherit objects is not critical
+
     # Extract frames at the specified target FPS
     try:
         extract_frames_at_fps(video_path, db)
