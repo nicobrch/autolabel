@@ -39,7 +39,7 @@ export function VideoCard({
   dateCreated,
   videoPath,
   firstFramePath,
-  hasInference = false, // Default to false if not provided
+  hasInference = false,
 }: VideoCardProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -51,7 +51,6 @@ export function VideoCard({
           src={videoPath || "/placeholder.svg"}
           width={1280}
           height={720}
-          // Use the first frame as the poster if available, otherwise fall back to placeholder
           poster={firstFramePath || "/placeholder.svg"}
           className="aspect-video w-full object-cover"
           controls
@@ -60,15 +59,21 @@ export function VideoCard({
         />
       </div>
 
-      <CardTitle className="flex justify-between px-4">
-        {getFileNameWithoutExtension(name)}
-        <button
-          className="hover:text-destructive/80 text-destructive/50 transform hover:scale-105 transition-all duration-300"
-          onClick={() => setIsDeleteDialogOpen(true)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </CardTitle>
+      <div className="flex justify-between items-start px-3 pt-2 min-h-[3rem]">
+        <div className="overflow-hidden min-w-0 flex-grow pr-2">
+          <CardTitle className="text-base line-clamp-2 leading-tight w-full">
+            {getFileNameWithoutExtension(name)}
+          </CardTitle>
+        </div>
+        <div className="flex-shrink-0">
+          <button
+            className="hover:text-destructive/80 text-destructive/50 transform hover:scale-105 transition-all duration-300"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
 
       {/* Delete Video Dialog */}
       <DeleteVideoDialog
@@ -79,7 +84,7 @@ export function VideoCard({
         projectId={projectId}
       />
 
-      <CardContent className="flex flex-col space-y-2 -mt-2">
+      <CardContent className="flex flex-col space-y-2 mt-[-0.5rem] px-3">
         <div className="flex justify-between">
           <div className="flex items-center">
             <Calendar className="mr-1.5 h-4 w-4" />
@@ -102,7 +107,7 @@ export function VideoCard({
         </div>
       </CardContent>
 
-      <CardFooter className="flex justify-between gap-2 pb-3 px-4">
+      <CardFooter className="flex justify-between gap-2 pb-3 px-3">
         <Button variant="default" size="sm" className="flex-1" asChild>
           <NavLink to={`/projects/${projectId}/label/${id}`}>
             <Tag className="mr-1.5 h-4 w-4" />

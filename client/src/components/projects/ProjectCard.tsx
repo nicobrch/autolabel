@@ -51,8 +51,8 @@ export function ProjectCard({
   return (
     <Card>
       <CardHeader className="flex flex-col space-y-2 overflow-hidden">
-        <div className="flex justify-between items-start w-full">
-          <div className="flex flex-col space-y-1 overflow-hidden">
+        <div className="flex justify-between items-start w-full gap-2">
+          <div className="flex-grow overflow-hidden min-w-0">
             <CardTitle className="truncate">
               <NavLink
                 to={`/projects/${id}`}
@@ -65,27 +65,29 @@ export function ProjectCard({
               {description}
             </CardDescription>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="text-primary transform hover:scale-105 transition-all duration-300 flex-shrink-0">
-                <EllipsisVertical className="h-5 w-5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => setIsDeleteDialogOpen(true)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex-shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="text-primary transform hover:scale-105 transition-all duration-300">
+                  <EllipsisVertical className="h-5 w-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
 
