@@ -12,10 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import exists, func
 from typing import List, Optional
-from db import get_db
-from models import Project, Video, Object, Point, VideoInference, Mask
-from utils import create_yolo_dataset_zip, create_coco_dataset_zip, logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
-from inference import InferenceAPI
+from src.db import get_db
+from src.models import Project, Video, Object, Point, VideoInference, Mask
+from src.utils import create_yolo_dataset_zip, create_coco_dataset_zip, logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
+from src.inference import InferenceAPI
 from pathlib import Path
 from os.path import abspath
 from datetime import datetime, timezone

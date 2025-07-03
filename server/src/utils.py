@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import exists
-from db import get_db
-from models import Object, Point, Frame, Mask, Video, VideoInference
+from src.db import get_db
+from src.models import Object, Point, Frame, Mask, Video, VideoInference
 
 # Configure logging
 logging.basicConfig(
