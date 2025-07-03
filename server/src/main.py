@@ -29,7 +29,9 @@ app = FastAPI(
 # CORS support for React
 
 origins = [
-    "http://localhost:5173",
+    "http://localhost:5173",  # Vite dev
+    "http://localhost:4173",  # Vite preview
+    "http://localhost:8080",  # Docker
 ]
 
 app.add_middleware(
@@ -1095,4 +1097,4 @@ async def delete_video(video_id: int, db: Session = Depends(get_db)):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

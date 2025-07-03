@@ -1,7 +1,7 @@
 import { getFileNameWithoutExtension } from "@/lib/utils";
 
-const apiUrl = "http://localhost:8001/api/v1";
-const publicUrl = "http://localhost:8001/public/videos";
+const apiUrl = "http://localhost:8000/api/v1";
+const publicUrl = "http://localhost:8000/public/videos";
 
 export function getVideoUrl(fileName: string): string {
   const videoName = getFileNameWithoutExtension(fileName);
