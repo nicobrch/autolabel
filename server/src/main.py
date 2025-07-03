@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import exists, func
-from typing import List, Optional
+from typing import List, Optional, Union
 from db import get_db
 from models import Project, Video, Object, Point, VideoInference, Mask
 from utils import create_yolo_dataset_zip, create_coco_dataset_zip, logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
@@ -535,68 +535,87 @@ async def create_object(
         raise HTTPException(status_code=500, detail="Failed to create object")
 
 
-# Add this new GET endpoint to fetch objects for a video
-@app.get("/api/v1/videos/{video_id}/objects", response_model=List[dict])
-async def get_video_objects(video_id: int, db: Session = Depends(get_db)):
-    """
-    Get all objects for a specific video.
-    """
-    # Check if video exists
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
-
-    # Get all objects for this video
-    objects = db.query(Object).filter(Object.video_id == video_id).all()
-
-    # Convert to dictionary representation
-    result = [sqlalchemy_to_dict(obj) for obj in objects]
-
-    return result
-
-
-# Delete an object from a specific video
-@app.delete("/api/v1/videos/{video_id}/objects/{object_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_object(
-    video_id: int,
-    object_id: int,
+# Add this new endpoint
+@app.post("/api/v1/projects/{project_id}/combined-dataset", response_class=FileResponse)
+async def create_combined_dataset(
+    project_id: int,
+    video_ids: List[int] = Body(...,
+                                description="List of video IDs to include in the dataset"),
+    dataset_type: str = Body(
+        ..., description="Dataset type: 'yolo_detection' or 'yolo_segmentation'"),
+    train_val_split: float = Body(
+        0.8, description="Train/validation split ratio (0.0-1.0)"),
     db: Session = Depends(get_db)
 ):
-    # Check if video exists
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    """
+    Create a combined dataset from multiple videos with train/validation split.
 
-    # Check if object exists
-    obj = db.query(Object).filter(Object.id == object_id).first()
-    if not obj:
-        raise HTTPException(status_code=404, detail="Object not found")
+    This endpoint:
+    1. Takes selected video IDs from a project
+    2. Combines their datasets (YOLO detection or segmentation)
+    3. Handles class ID remapping to ensure consistency
+    4. Splits the dataset into training and validation sets
+    5. Returns a ZIP file with the complete dataset
+    """
+    # Validate project exists
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
 
-    # Check if object belongs to this video
-    if obj.video_id != video_id:
+    # Validate dataset type
+    valid_types = ["yolo_detection", "yolo_segmentation"]
+    if dataset_type not in valid_types:
         raise HTTPException(
-            status_code=400, detail="Object does not belong to this video")
-
-    try:
-        # Delete any points associated with this object
-        db.query(Point).filter(Point.object_id == object_id).delete()
-
-        # Delete any masks associated with this object
-        db.query(Mask).filter(Mask.object_id == object_id).delete()
-
-        # Delete the object
-        db.delete(obj)
-        db.commit()
-
-        logger.info(f"Deleted object {object_id} from video {video_id}")
-        return {"status": "success", "message": "Object deleted successfully"}
-
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to delete object {object_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete object: {str(e)}"
+            status_code=400,
+            detail=f"Invalid dataset type. Must be one of: {', '.join(valid_types)}"
         )
+
+    # Validate train_val_split
+    if not 0 < train_val_split < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Train/validation split must be between 0 and 1 (exclusive)"
+        )
+
+    # Validate video IDs belong to this project
+    project_videos = db.query(Video.id).filter(
+        Video.project_id == project_id,
+        Video.type == "base"
+    ).all()
+    project_video_ids = [v.id for v in project_videos]
+
+    invalid_videos = [vid for vid in video_ids if vid not in project_video_ids]
+    if invalid_videos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Videos with IDs {invalid_videos} do not belong to this project"
+        )
+
+    # Create combined dataset
+    from utils import create_combined_dataset_zip
+    zip_path = create_combined_dataset_zip(
+        video_ids=video_ids,
+        dataset_type=dataset_type,
+        train_val_split=train_val_split,
+        project_name=project.name,
+        db=db
+    )
+
+    if not zip_path or not os.path.exists(zip_path):
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate combined dataset"
+        )
+
+    # Return the ZIP file
+    dataset_name = f"{project.name}_{dataset_type}.zip"
+    sanitized_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '', dataset_name)
+
+    return FileResponse(
+        path=zip_path,
+        filename=sanitized_name,
+        media_type="application/zip"
+    )
 
 
 # Endpoint to segment objects in a video frame using SAM2

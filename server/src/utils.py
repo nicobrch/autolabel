@@ -10,6 +10,7 @@ import datetime  # Add this import
 import yaml  # Add this import for YAML handling
 import tempfile  # Add this import for temporary directory
 import zipfile   # Add this import for ZIP creation
+import re
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 from sqlalchemy.orm import Session
@@ -1312,3 +1313,309 @@ def create_yolo_seg_dataset_zip(video_id: int, db=None) -> str:
                 )
 
     return zip_path
+
+
+def combine_class_mappings(video_ids, db, dataset_type):
+    """
+    Combine class mappings from multiple videos into a single unified mapping.
+
+    Args:
+        video_ids: List of video IDs
+        db: Database session
+        dataset_type: 'detection' or 'segmentation'
+
+    Returns:
+        Tuple of (unified_class_mapping, class_id_remapping_by_video)
+    """
+    # Dictionary to store all unique classes
+    all_classes = set()
+
+    # Dictionary to store original class mappings by video
+    original_mappings = {}
+
+    for video_id in video_ids:
+        # Get the video from database
+        video = db.query(Video).filter_by(id=video_id).first()
+        if not video:
+            logger.warning(f"Video with ID {video_id} not found, skipping")
+            continue
+
+        video_name = Path(video.file_path).stem
+
+        # Get path to the YOLO data.yml file depending on dataset type
+        if dataset_type == 'detection':
+            data_yml_path = public_yolo_dir_with_video_name(
+                video_name) / "data.yml"
+        else:  # segmentation
+            data_yml_path = public_yolo_seg_dir_with_video_name(
+                video_name) / "data.yml"
+            # If segmentation YAML doesn't exist, try detection one as fallback
+            if not data_yml_path.exists():
+                data_yml_path = public_yolo_dir_with_video_name(
+                    video_name) / "data.yml"
+
+        # Read class mapping from data.yml
+        if data_yml_path.exists():
+            try:
+                with open(data_yml_path, 'r') as f:
+                    data_yml = yaml.safe_load(f)
+
+                class_mapping = data_yml.get('names', {})
+                original_mappings[video_id] = class_mapping
+
+                # Add classes to the set of all classes
+                for class_name in class_mapping.values():
+                    all_classes.add(class_name)
+            except Exception as e:
+                logger.error(
+                    f"Error reading data.yml for video {video_id}: {e}")
+                # If we can't read the YAML, get classes from database
+                objects = db.query(Object).filter_by(video_id=video_id).all()
+                class_mapping = {i: obj.name for i, obj in enumerate(
+                    set(obj.name for obj in objects))}
+                original_mappings[video_id] = class_mapping
+                for class_name in class_mapping.values():
+                    all_classes.add(class_name)
+        else:
+            # If data.yml doesn't exist, get classes from database
+            objects = db.query(Object).filter_by(video_id=video_id).all()
+            class_mapping = {i: obj.name for i, obj in enumerate(
+                set(obj.name for obj in objects))}
+            original_mappings[video_id] = class_mapping
+            for class_name in class_mapping.values():
+                all_classes.add(class_name)
+
+    # Create a new unified mapping (sorted alphabetically for consistency)
+    sorted_classes = sorted(list(all_classes))
+    unified_mapping = {i: class_name for i,
+                       class_name in enumerate(sorted_classes)}
+
+    # Create remapping dictionaries for each video
+    remapping = {}
+    for video_id, original_mapping in original_mappings.items():
+        # Create mapping from original class IDs to new unified class IDs
+        video_remapping = {}
+        for orig_id, class_name in original_mapping.items():
+            # Find this class in the unified mapping
+            for new_id, unified_class in unified_mapping.items():
+                if unified_class == class_name:
+                    video_remapping[int(orig_id)] = new_id
+                    break
+        remapping[video_id] = video_remapping
+
+    return unified_mapping, remapping
+
+
+def create_combined_dataset_zip(video_ids, dataset_type, train_val_split, project_name, db):
+    """
+    Create a combined dataset ZIP file for multiple videos with train/val split.
+
+    Args:
+        video_ids: List of video IDs
+        dataset_type: 'detection' or 'segmentation'
+        train_val_split: Float between 0 and 1 indicating the training portion
+        project_name: Name of the project for the ZIP filename
+        db: Database session
+
+    Returns:
+        Path to the created ZIP file
+    """
+    try:
+        # Validate inputs
+        if not video_ids:
+            logger.error("No video IDs provided")
+            return None
+
+        if not 0 < train_val_split < 1:
+            logger.error(
+                f"Invalid train/val split: {train_val_split}, using 0.8")
+            train_val_split = 0.8
+
+        dataset_subtype = "detection" if dataset_type == "yolo_detection" else "segmentation"
+
+        # Get class mappings and remapping information
+        unified_mapping, remapping = combine_class_mappings(
+            video_ids, db, dataset_subtype)
+
+        # Create a temporary directory for dataset preparation
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+
+            # Create directory structure
+            (temp_dir_path / "images" / "train").mkdir(parents=True, exist_ok=True)
+            (temp_dir_path / "images" / "val").mkdir(parents=True, exist_ok=True)
+            (temp_dir_path / "labels" / "train").mkdir(parents=True, exist_ok=True)
+            (temp_dir_path / "labels" / "val").mkdir(parents=True, exist_ok=True)
+
+            # Lists to track all image files for later train/val splitting
+            all_images = []
+            all_labels = []
+
+            # Process each video
+            image_counter = 1  # For renaming images sequentially
+
+            for video_id in video_ids:
+                # Get the video from database
+                video = db.query(Video).filter_by(id=video_id).first()
+                if not video:
+                    logger.warning(
+                        f"Video with ID {video_id} not found, skipping")
+                    continue
+
+                video_name = Path(video.file_path).stem
+
+                # Get paths to frames and annotations based on dataset type
+                if dataset_subtype == 'detection':
+                    frames_dir = public_frames_base_dir_with_video_name(
+                        video_name)
+                    labels_dir = public_yolo_dir_with_video_name(video_name)
+                else:  # segmentation
+                    frames_dir = public_frames_base_dir_with_video_name(
+                        video_name)
+                    labels_dir = public_yolo_seg_dir_with_video_name(
+                        video_name)
+
+                # Get all frames
+                if frames_dir.exists():
+                    frames = sorted(list(frames_dir.glob("*.jpg")))
+                else:
+                    logger.warning(
+                        f"Frames directory not found for video {video_id}, skipping")
+                    continue
+
+                # Process each frame
+                for frame in frames:
+                    # Find corresponding label file
+                    label_file = labels_dir / f"{frame.stem}.txt"
+
+                    # Skip if label file doesn't exist
+                    if not label_file.exists():
+                        continue
+
+                    # Rename image to avoid name conflicts
+                    new_image_name = f"img_{image_counter:05d}.jpg"
+                    new_label_name = f"img_{image_counter:05d}.txt"
+                    image_counter += 1
+
+                    # Copy image to temporary directory (we'll move to train/val later)
+                    temp_image_path = temp_dir_path / "images" / new_image_name
+                    shutil.copy(frame, temp_image_path)
+
+                    # Read and remap annotation file
+                    with open(label_file, 'r') as f:
+                        annotations = f.readlines()
+
+                    # Apply class ID remapping
+                    remapped_annotations = []
+                    video_remap = remapping.get(video_id, {})
+
+                    for ann in annotations:
+                        parts = ann.strip().split()
+                        if not parts:
+                            continue
+
+                        try:
+                            original_class_id = int(parts[0])
+                            new_class_id = video_remap.get(
+                                original_class_id, original_class_id)
+                            remapped_line = f"{new_class_id} {' '.join(parts[1:])}"
+                            remapped_annotations.append(remapped_line)
+                        except (ValueError, IndexError) as e:
+                            logger.warning(
+                                f"Error processing annotation: {ann} - {e}")
+
+                    # Write remapped annotations to temporary file
+                    temp_label_path = temp_dir_path / "labels" / new_label_name
+                    with open(temp_label_path, 'w') as f:
+                        f.write('\n'.join(remapped_annotations))
+
+                    # Track files for train/val split
+                    all_images.append(new_image_name)
+                    all_labels.append(new_label_name)
+
+            # Split into train/val sets
+            num_samples = len(all_images)
+            if num_samples == 0:
+                logger.error("No valid samples found")
+                return None
+
+            # Shuffle with fixed seed for reproducibility
+            indices = list(range(num_samples))
+            np.random.seed(42)  # Fixed seed
+            np.random.shuffle(indices)
+
+            # Split indices
+            num_train = int(num_samples * train_val_split)
+            train_indices = indices[:num_train]
+            val_indices = indices[num_train:]
+
+            # Move files to train/val directories
+            for i in train_indices:
+                shutil.move(temp_dir_path / "images" / all_images[i],
+                            temp_dir_path / "images" / "train" / all_images[i])
+                shutil.move(temp_dir_path / "labels" / all_labels[i],
+                            temp_dir_path / "labels" / "train" / all_labels[i])
+
+            for i in val_indices:
+                shutil.move(temp_dir_path / "images" / all_images[i],
+                            temp_dir_path / "images" / "val" / all_images[i])
+                shutil.move(temp_dir_path / "labels" / all_labels[i],
+                            temp_dir_path / "labels" / "val" / all_labels[i])
+
+            # Remove empty directories
+            try:
+                (temp_dir_path / "images").rmdir()
+                (temp_dir_path / "labels").rmdir()
+            except OSError:
+                pass  # Directory not empty or doesn't exist
+
+            # Create dataset.yaml
+            dataset_yaml = {
+                "path": "dataset",
+                "train": "images/train",
+                "val": "images/val",
+                "nc": len(unified_mapping),
+                "names": unified_mapping
+            }
+
+            with open(temp_dir_path / "dataset.yaml", 'w') as f:
+                yaml.dump(dataset_yaml, f,
+                          default_flow_style=False, sort_keys=False)
+
+            # Create ZIP file
+            sanitized_project_name = re.sub(
+                r'[^a-zA-Z0-9_-]', '', project_name)
+            zip_filename = f"{sanitized_project_name}_{dataset_type}.zip"
+
+            # Create public directory for project if it doesn't exist
+            public_dir = Path("public")
+            public_dir.mkdir(exist_ok=True)
+
+            projects_dir = public_dir / "projects"
+            projects_dir.mkdir(exist_ok=True)
+
+            zip_path = projects_dir / zip_filename
+
+            # Remove existing ZIP if it exists
+            if zip_path.exists():
+                zip_path.unlink()
+
+            # Create the ZIP file
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(temp_dir_path):
+                    for file in files:
+                        file_path = Path(root) / file
+                        rel_path = file_path.relative_to(temp_dir_path)
+                        zipf.write(file_path, rel_path)
+
+            logger.info(f"Created combined dataset ZIP at {zip_path}")
+            logger.info(
+                f"Dataset contains {num_train} training samples and {len(val_indices)} validation samples")
+
+            return str(zip_path)
+
+    except Exception as e:
+        logger.error(f"Error creating combined dataset: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
