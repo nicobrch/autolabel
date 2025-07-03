@@ -7,12 +7,14 @@ import { ErrorMessage } from "@/components/ui/errormsg";
 import { useParams } from "react-router";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { UploadVideoForm } from "@/components/videos/UploadVideoForm";
-import { Upload } from "lucide-react";
+import { Upload, Download } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ContentHeader } from "@/components/layout/ContentHeader";
+import { DownloadDatasetDialog } from "@/components/videos/DownloadDatasetDialog";
 
 export default function ProjectManager() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
 
   const { projectId } = useParams<{ projectId: string }>();
 
@@ -33,15 +35,31 @@ export default function ProjectManager() {
   return (
     <div className="p-4">
       <ContentHeader>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Upload className="h-4 w-4" />
-              Upload Video
-            </Button>
-          </DialogTrigger>
-          <UploadVideoForm setIsOpen={setIsOpen} />
-        </Dialog>
+        <div className="flex gap-2">
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Upload className="h-4 w-4" />
+                Upload Video
+              </Button>
+            </DialogTrigger>
+            <UploadVideoForm setIsOpen={setIsOpen} />
+          </Dialog>
+
+          <Dialog open={isDownloadOpen} onOpenChange={setIsDownloadOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2" variant="outline">
+                <Download className="h-4 w-4" />
+                Download Dataset
+              </Button>
+            </DialogTrigger>
+            <DownloadDatasetDialog
+              videos={videos?.filter((v) => v.has_inference) || []}
+              setIsOpen={setIsDownloadOpen}
+              projectId={projectId}
+            />
+          </Dialog>
+        </div>
       </ContentHeader>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5">

@@ -699,3 +699,79 @@ export async function clearObjectPoints(
 
   return response.json();
 }
+
+/**
+ * Download a combined dataset from multiple videos in a project
+ */
+export interface CombinedDatasetParams {
+  projectId: string | number;
+  videoIds: (string | number)[];
+  datasetType: string;
+  trainValSplit: number;
+}
+
+export async function downloadCombinedDataset(
+  params: CombinedDatasetParams,
+): Promise<void> {
+  const { projectId, videoIds, datasetType, trainValSplit } = params;
+
+  try {
+    // Convert string IDs to numbers if needed
+    const numericVideoIds = videoIds.map((id) =>
+      typeof id === "string" ? parseInt(id, 10) : id,
+    );
+
+    // Create a Blob URL from the response
+    const response = await fetch(
+      `${apiUrl}/projects/${projectId}/combined-dataset`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          video_ids: numericVideoIds,
+          dataset_type: datasetType,
+          train_val_split: trainValSplit,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(
+        errorData?.detail ||
+          `Failed to download dataset (status: ${response.status})`,
+      );
+    }
+
+    // Get the blob from the response
+    const blob = await response.blob();
+
+    // Create a temporary URL for the blob
+    const url = window.URL.createObjectURL(blob);
+
+    // Create a temporary link element
+    const a = document.createElement("a");
+    a.href = url;
+
+    // Set filename from Content-Disposition header or use default
+    const contentDisposition = response.headers.get("content-disposition");
+    const filenameMatch =
+      contentDisposition && contentDisposition.match(/filename="?([^"]*)"?/);
+    a.download = filenameMatch
+      ? filenameMatch[1]
+      : `combined_dataset_${datasetType}.zip`;
+
+    // Trigger download
+    document.body.appendChild(a);
+    a.click();
+
+    // Clean up
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error("Error downloading combined dataset:", error);
+    throw error;
+  }
+}

@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import exists, func
-from typing import List, Optional, Union
+from typing import List, Optional
 from db import get_db
 from models import Project, Video, Object, Point, VideoInference, Mask
 from utils import create_yolo_dataset_zip, create_coco_dataset_zip, logger, extract_video_metadata, extract_frames_at_fps, sqlalchemy_to_dict, random_color, draw_objects_masks_on_frame, public_frames_base_dir_with_video_name, public_frames_inference_dir_with_video_name, public_video_thumbnail_dir_with_video_name, public_videos_dir_with_video_name
@@ -471,7 +471,25 @@ async def get_frame_count(video_id: int, db: Session = Depends(get_db)):
     return {"frame_count": frame_count}
 
 
+# Endpoint to get all objects for a video
+@app.get("/api/v1/videos/{video_id}/objects", response_model=List[dict])
+async def get_video_objects(video_id: int, db: Session = Depends(get_db)):
+    # Check if video exists
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    # Get all objects for the video
+    objects = db.query(Object).filter(Object.video_id == video_id).all()
+
+    # Convert to dictionary representation
+    result = [sqlalchemy_to_dict(obj) for obj in objects]
+
+    return result
+
 # Create a new object for a given video
+
+
 @app.post("/api/v1/videos/{video_id}/objects", response_model=dict)
 async def create_object(
     video_id: int,
