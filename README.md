@@ -20,19 +20,18 @@ AutoLabel is a tool for automated video labeling using Segment Anything Model 2 
 The easiest way to run the complete application is using Docker Compose:
 
 ```shell
+# Download SAM2 Model Checkpoints
+cd server/checkpoints
+./download.sh
+
 # Build and start all services
+cd ../.. # Back to project root
 docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
 ```
 
 After starting the containers:
 
-- Frontend: http://localhost:80
+- Frontend: http://localhost:8080
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
 
@@ -47,7 +46,8 @@ See [client README](./client/README.md) for detailed instructions.
 ```shell
 cd client
 pnpm install
-pnpm run dev
+pnpm run build
+pnpm run preview
 ```
 
 ### Server
@@ -57,24 +57,10 @@ See [server README](./server/README.md) for detailed instructions.
 ```shell
 cd server
 uv venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-uv pip install -r requirements.txt
+uv sync
 cd checkpoints
 ./download.sh
 cd ../src
 uv run db.py
 uv run main.py
-```
-
-## File Structure
-
-```
-autolabel/
-├── client/               # React frontend
-├── server/               # FastAPI backend
-│   ├── checkpoints/      # SAM2 model files
-│   ├── configs/          # SAM2 config files
-│   └── src/              # Server source code
-├── docker-compose.yml    # Docker configuration
-└── README.md             # This file
 ```
