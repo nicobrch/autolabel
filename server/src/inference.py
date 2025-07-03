@@ -36,31 +36,51 @@ class InferenceAPI:
         current_dir = Path(os.path.dirname(os.path.abspath(__file__)))
         src_directory = current_dir.parent
 
-        # Define absolute paths to checkpoints and configs
-        model_map = {
-            "tiny": (
-                str(src_directory / "checkpoints" / "sam2.1_hiera_tiny.pt"),
-                str(src_directory / "configs" / "sam2.1_hiera_t.yaml")
-            ),
-            "small": (
-                str(src_directory / "checkpoints" / "sam2.1_hiera_small.pt"),
-                str(src_directory / "configs" / "sam2.1_hiera_s.yaml")
-            ),
-            "base-plus": (
-                str(src_directory / "checkpoints" / "sam2.1_hiera_base_plus.pt"),
-                str(src_directory / "configs" / "sam2.1_hiera_b+.yaml")
-            ),
-            "large": (
-                str(src_directory / "checkpoints" / "sam2.1_hiera_large.pt"),
-                str(src_directory / "configs" / "sam2.1_hiera_l.yaml")
-            ),
-        }
-
-        # Ensure configs directory exists
-        configs_dir = src_directory / "configs"
-        if not configs_dir.exists():
-            configs_dir.mkdir(parents=True, exist_ok=True)
-            logger.warning(f"Created configs directory at {configs_dir}")
+        # Define absolute paths to checkpoints and relative paths for configs
+        if os.name == "nt":
+            model_map = {
+                "tiny": (
+                    str(src_directory / "checkpoints" / "sam2.1_hiera_tiny.pt"),
+                    str(src_directory / "configs" / "sam2.1_hiera_t.yaml")
+                ),
+                "small": (
+                    str(src_directory / "checkpoints" / "sam2.1_hiera_small.pt"),
+                    str(src_directory / "configs" / "sam2.1_hiera_s.yaml")
+                ),
+                "base-plus": (
+                    str(src_directory / "checkpoints" /
+                        "sam2.1_hiera_base_plus.pt"),
+                    str(src_directory / "configs" / "sam2.1_hiera_b+.yaml")
+                ),
+                "large": (
+                    str(src_directory / "checkpoints" / "sam2.1_hiera_large.pt"),
+                    str(src_directory / "configs" / "sam2.1_hiera_l.yaml")
+                ),
+            }
+        else:
+            model_map = {
+                "tiny": (
+                    str(src_directory / "checkpoints" / "sam2.1_hiera_tiny.pt"),
+                    "/" + str(src_directory / "configs" /
+                              "sam2.1_hiera_t.yaml")
+                ),
+                "small": (
+                    str(src_directory / "checkpoints" / "sam2.1_hiera_small.pt"),
+                    "/" + str(src_directory / "configs" /
+                              "sam2.1_hiera_s.yaml")
+                ),
+                "base-plus": (
+                    str(src_directory / "checkpoints" /
+                        "sam2.1_hiera_base_plus.pt"),
+                    "/" + str(src_directory / "configs" /
+                              "sam2.1_hiera_b+.yaml")
+                ),
+                "large": (
+                    str(src_directory / "checkpoints" / "sam2.1_hiera_large.pt"),
+                    "/" + str(src_directory / "configs" /
+                              "sam2.1_hiera_l.yaml")
+                ),
+            }
 
         if self.checkpoint not in model_map:
             valid_options = ', '.join(model_map.keys())
