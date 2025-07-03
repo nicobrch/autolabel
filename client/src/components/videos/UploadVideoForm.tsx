@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getFileNameWithoutExtension } from "@/lib/utils";
-import { set, z } from "zod";
+import { z } from "zod";
 
 // Define validation schema
 const uploadVideoSchema = z.object({
