@@ -1,43 +1,32 @@
-FROM python:3.11-slim
+# Use a specific Python version
+FROM python:3.12
 
+# Install uv
+RUN pip install uv
+
+# Set working directory
 WORKDIR /app
 
-# Install curl and other essential tools
-RUN apt-get update && apt-get install -y curl wget && rm -rf /var/lib/apt/lists/*
+# Copy dependency definition files
+COPY pyproject.toml uv.lock requirements.txt ./
 
-# Install UV package manager
-RUN curl -sSf https://astral.sh/uv/install.sh | sh
+# Create virtual environment and sync dependencies
+# This also makes the venv's python the default one for subsequent RUN commands
+RUN uv venv .venv && . .venv/bin/activate && uv sync
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Add UV to PATH
-ENV PATH="/root/.cargo/bin:${PATH}"
+# Install wget and OpenCV dependencies
+RUN apt-get update && apt-get install -y wget ffmpeg libgl1-mesa-glx
 
-# Copy requirements
-COPY requirements.txt .
-
-# Install dependencies using UV
-RUN uv pip install --no-cache-dir -r requirements.txt
-
-# Copy source code
+# Copy the rest of the server application source code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p checkpoints configs data
+# Initialize the database
+WORKDIR /app/src
+RUN uv run db.py
 
-# Download SAM2 model checkpoints
-WORKDIR /app/checkpoints
-RUN chmod +x download.sh && ./download.sh
-
-# Ensure config files exist
-WORKDIR /app/configs
-RUN echo "Ensuring config files exist" && \
-    touch sam2.1_hiera_t.yaml sam2.1_hiera_s.yaml sam2.1_hiera_b+.yaml sam2.1_hiera_l.yaml
-
-# Initialize database using UV
-WORKDIR /app
-RUN uv run src/db.py
-
-# Expose port
+# Expose the port the server runs on
 EXPOSE 8000
 
-# Run the server using UV
-CMD ["uv", "run", "src/main.py"]
+# Run the server
+CMD ["uv", "run", "main.py", "--host", "0.0.0.0"]
