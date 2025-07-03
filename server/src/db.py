@@ -1,4 +1,5 @@
 import logging
+import os
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
@@ -17,9 +18,16 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 # Setup logging
 logger = logging.getLogger(__name__)
 
+# Define the data directory within the /app directory
+DATA_DIR = os.path.abspath(os.path.join(
+    os.path.dirname(__file__), '..', 'data'))
+os.makedirs(DATA_DIR, exist_ok=True)
+
 # Get database URL from environment variable or use a default SQLite database
-DATABASE_URL = "sqlite:///../autolabel.db"
-engine = create_engine(DATABASE_URL, echo=False)
+DATABASE_URL = f"sqlite:///{os.path.join(DATA_DIR, 'autolabel.db')}"
+engine = create_engine(
+    DATABASE_URL, connect_args={"check_same_thread": False}
+)
 
 # Create a scoped session factory
 session_factory = sessionmaker(bind=engine)
