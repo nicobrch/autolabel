@@ -50,7 +50,7 @@ opencv-python==4.11.0.86
     # via server (pyproject.toml)
 packaging==25.0
     # via hydra-core
-pillow==11.2.1
+pillow==12.1.1
     # via
     #   sam-2
     #   torchvision
